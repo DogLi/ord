@@ -1,4 +1,3 @@
-use crate::okx::uniswap::client::UnisatClient;
 use bitcoincore_rpc::json::GetBlockchainInfoResult;
 use bitcoincore_rpc::Result as BtcRpcResult;
 use {super::*, bitcoincore_rpc::Auth};
@@ -39,8 +38,6 @@ pub struct Settings {
   index_btc_domain: bool,
   index_brc20: bool,
   first_brc20_height: Option<u32>,
-  pub first_unisat_swap_height: u32,
-  unisat_api_key: String,
   fractal_address_black_list: Vec<String>,
   disable_invalid_brc20_tracking: bool,
 }
@@ -164,8 +161,6 @@ impl Settings {
       index_btc_domain: self.index_btc_domain || source.index_btc_domain,
       index_brc20: self.index_brc20 || source.index_brc20,
       first_brc20_height: self.first_brc20_height.or(source.first_brc20_height),
-      first_unisat_swap_height: self.first_unisat_swap_height,
-      unisat_api_key: self.unisat_api_key,
       fractal_address_black_list: if self.fractal_address_black_list.is_empty() {
         source.fractal_address_black_list
       } else {
@@ -216,8 +211,6 @@ impl Settings {
       index_btc_domain: options.index_btc_domain,
       index_brc20: options.index_brc20,
       first_brc20_height: options.first_brc20_height,
-      first_unisat_swap_height: options.first_unisat_swap_height,
-      unisat_api_key: options.unisat_api_key,
       fractal_address_black_list: options.fractal_address_black_list,
       disable_invalid_brc20_tracking: options.disable_invalid_brc20_tracking,
     }
@@ -318,8 +311,6 @@ impl Settings {
       index_btc_domain: get_bool("INDEX_BTC_DOMAIN"),
       index_brc20: get_bool("INDEX_BRC20"),
       first_brc20_height: get_u32("FRIST_BRC20_HEIGHT")?,
-      first_unisat_swap_height: get_u32("FIRST_UNISAT_SWAP_HEIGHT")?.unwrap_or_default(),
-      unisat_api_key: get_string("UNISAT_API_KEY").unwrap_or_default(),
       // TODO: get from env
       fractal_address_black_list: vec![],
       disable_invalid_brc20_tracking: get_bool("DISABLE_INVALID_BRC20_TRACKING"),
@@ -361,8 +352,6 @@ impl Settings {
       index_btc_domain: false,
       index_brc20: false,
       first_brc20_height: None,
-      first_unisat_swap_height: 0,
-      unisat_api_key: "".to_string(),
       fractal_address_black_list: vec![],
       disable_invalid_brc20_tracking: false,
     }
@@ -447,8 +436,6 @@ impl Settings {
       index_btc_domain: self.index_btc_domain,
       index_brc20: self.index_brc20,
       first_brc20_height: self.first_brc20_height,
-      first_unisat_swap_height: self.first_unisat_swap_height,
-      unisat_api_key: self.unisat_api_key,
       fractal_address_black_list: self.fractal_address_black_list,
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking,
     })
@@ -694,10 +681,6 @@ impl Settings {
 
   pub(crate) fn index_btc_domain(&self) -> bool {
     self.index_btc_domain
-  }
-
-  pub fn unisat_swap_client(&self) -> UnisatClient {
-    UnisatClient::new(&self.unisat_api_key)
   }
 
   pub fn address_black_list(&self) -> Vec<String> {
@@ -1240,8 +1223,6 @@ mod tests {
         index_btc_domain: true,
         index_brc20: true,
         first_brc20_height: None,
-        first_unisat_swap_height: 0,
-        unisat_api_key: "".to_string(),
         fractal_address_black_list: vec![],
         disable_invalid_brc20_tracking: true,
       }
@@ -1319,8 +1300,6 @@ mod tests {
         index_btc_domain: true,
         index_brc20: true,
         first_brc20_height: None,
-        first_unisat_swap_height: 0,
-        unisat_api_key: "".to_string(),
         fractal_address_black_list: vec![],
         disable_invalid_brc20_tracking: true,
       }

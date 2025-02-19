@@ -109,11 +109,6 @@ pub struct Options {
     help = "Don't look for BRC20 messages below <FIRST_BRC20_HEIGHT>."
   )]
   pub(crate) first_brc20_height: Option<u32>,
-  #[arg(
-    long,
-    help = "Don't look for unisat swap withdraw history messages below <FIRST_UNISAT_SWAP_HEIGHT>."
-  )]
-  pub(crate) first_unisat_swap_height: u32,
   #[clap(
     long,
     default_value = "",
