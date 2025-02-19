@@ -45,6 +45,15 @@ impl Chain {
     }
   }
 
+  pub(crate) fn first_brc20_height(self) -> u32 {
+    match self {
+      // brc20 启动高度  21000
+      Self::Mainnet => 21000,
+      Self::Testnet => 2413343,
+      _ => 0,
+    }
+  }
+
   pub(crate) fn first_rune_height(self) -> u32 {
     Rune::first_rune_height(self.into())
   }
@@ -55,16 +64,6 @@ impl Chain {
       Self::Regtest => 110,
       Self::Signet => 175392,
       Self::Testnet => 2544192,
-      Self::Testnet4 => 0,
-    }
-  }
-
-  pub(crate) fn first_brc20_height(self) -> u32 {
-    match self {
-      Self::Mainnet => 779832,
-      Self::Regtest => 0,
-      Self::Signet => 0,
-      Self::Testnet => 2413343,
       Self::Testnet4 => 0,
     }
   }

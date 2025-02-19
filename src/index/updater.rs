@@ -339,6 +339,7 @@ impl Updater<'_> {
     let mut statistic_to_count = wtx.open_table(STATISTIC_TO_COUNT)?;
 
     if self.index.index_inscriptions || self.index.index_addresses || self.index.index_sats {
+      // 处理 tx
       self.index_utxo_entries(
         &block,
         txout_receiver,
@@ -577,6 +578,7 @@ impl Updater<'_> {
       log::trace!("Indexing transaction {tx_offset}…");
 
       let input_utxo_entries = if tx_offset == 0 {
+        // coinbase 交易没有input
         Vec::new()
       } else {
         tx.input
@@ -700,7 +702,7 @@ impl Updater<'_> {
         .entry(OutPoint::null())
         .or_insert(UtxoEntryBuf::empty(self.index));
 
-      for chunk in lost_sat_ranges.chunks_exact(11) {
+      for chunk in lost_sat_ranges.chunks_exact(14) {
         let (start, end) = SatRange::load(chunk.try_into().unwrap());
         if !Sat(start).common() {
           sat_to_satpoint.insert(
@@ -801,7 +803,7 @@ impl Updater<'_> {
     let mut pending_input_sat_range = None;
     let mut input_sat_ranges_iter = input_sat_ranges
       .iter()
-      .flat_map(|slice| slice.chunks_exact(11));
+      .flat_map(|slice| slice.chunks_exact(14));
 
     // Preallocate our temporary array, sized to hold the combined
     // sat ranges from our inputs.  We'll never need more than that

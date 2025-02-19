@@ -106,4 +106,21 @@ pub struct Options {
     help = "Disable tracking of invalid BRC-20 inscriptions. [default: false]"
   )]
   pub(crate) disable_invalid_brc20_tracking: bool,
+  #[arg(
+    long,
+    help = "Don't look for BRC20 messages below <FIRST_BRC20_HEIGHT>."
+  )]
+  pub(crate) first_brc20_height: Option<u32>,
+  #[clap(
+    long,
+    default_value = "",
+    help = "the unisat api key where can get from https://developer.unisat.io/dashboard/fractal/mainnet"
+  )]
+  pub(crate) unisat_api_key: String,
+  #[clap(
+    long,
+    value_delimiter = ',',
+    help = "set the fractal address black list, use ',' to separate between addresses"
+  )]
+  pub(crate) fractal_address_black_list: Vec<String>,
 }

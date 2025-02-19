@@ -380,7 +380,7 @@ impl InscriptionUpdater<'_, '_> {
     let mut offset = 0;
     for chunk in input_sat_ranges
       .iter()
-      .flat_map(|slice| slice.chunks_exact(11))
+      .flat_map(|slice| slice.chunks_exact(14))
     {
       let (start, end) = SatRange::load(chunk.try_into().unwrap());
       let size = end - start;
