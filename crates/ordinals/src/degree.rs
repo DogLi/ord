@@ -22,9 +22,9 @@ impl From<Sat> for Degree {
   fn from(sat: Sat) -> Self {
     let height = sat.height().n();
     Degree {
-      hour: height / (CYCLE_EPOCHS * SUBSIDY_HALVING_INTERVAL),
-      minute: height % SUBSIDY_HALVING_INTERVAL,
-      second: height % DIFFCHANGE_INTERVAL,
+      hour: height / (CYCLE_EPOCHS * Epoch::FRACTAL_SUBSIDY_HALVING_INTERVAL),
+      minute: height % Epoch::FRACTAL_SUBSIDY_HALVING_INTERVAL,
+      second: height % Epoch::FRACTAL_DIFFCHANGE_INTERVAL,
       third: sat.third(),
     }
   }
