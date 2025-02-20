@@ -2714,6 +2714,7 @@ dependencies = [
  "tokio-util 0.7.13",
  "tower-http",
  "unindent",
+ "url",
  "urlencoding",
 ]
 

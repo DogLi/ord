@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error, Deserialize, Serialize)]
 pub enum BRC20Error {
+  #[error("Database error: {0}")]
+  DBError(String),
+
   #[error("Failed to parse ticker: {0}")]
   TickerParse(#[from] ticker::Error),
 
@@ -26,6 +29,9 @@ pub enum BRC20Error {
 
   #[error("Ticker has an invalid amount: {0}")]
   InvalidAmount(FixedPoint),
+
+  #[error("Invalid address: {0}")]
+  InvalidAddress(String),
 
   #[error("Minting has reached the maximum supply limit")]
   MintingLimitReached,

@@ -7,6 +7,7 @@ pub enum BRC20OpType {
   Mint,
   InscribeTransfer,
   Transfer,
+  UnisatSwapWithdraw,
 }
 
 impl From<&BRC20Operation> for BRC20OpType {
@@ -26,6 +27,7 @@ pub enum BRC20Event {
   Mint(MintEvent),
   InscribeTransfer(InscribeTransferEvent),
   Transfer(TransferEvent),
+  UnisatSwap(UnisatSwapEvent),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -56,4 +58,10 @@ pub struct TransferEvent {
   pub amount: u128,
   pub send_to_coinbase: bool,
   pub burned: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct UnisatSwapEvent {
+  pub tick: BRC20Ticker,
+  pub amount: u128,
 }
