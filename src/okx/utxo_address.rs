@@ -40,6 +40,11 @@ impl UtxoAddress {
     )
   }
 
+  pub fn from_address(address: Address) -> Self {
+    let inner = UtxoAddressInner::Address(address.as_unchecked().clone());
+    Self(inner)
+  }
+
   pub fn op_return(&self) -> bool {
     match &self.0 {
       UtxoAddressInner::Address(_) => false,

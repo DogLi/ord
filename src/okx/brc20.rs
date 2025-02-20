@@ -1,7 +1,7 @@
 use super::{entry::DynamicEntry, *};
 use crate::index::Curse;
 use crate::Chain;
-use fixed_point::FixedPoint;
+pub use fixed_point::FixedPoint;
 use once_cell::sync::Lazy;
 use operation::{BRC20OperationExtractor, Deploy, Mint, RawOperation, Transfer};
 use policies::HardForks;

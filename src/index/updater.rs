@@ -12,6 +12,7 @@ use {
   },
 };
 
+use crate::okx::uniswap::client::{UnisatClient, WithdrawHistory};
 pub(crate) use inscription_updater::Curse;
 
 mod inscription_updater;
@@ -20,6 +21,7 @@ mod rune_updater;
 pub(crate) struct BlockData {
   pub(crate) header: Header,
   pub(crate) txdata: Vec<(Transaction, Txid)>,
+  pub(crate) withdraw_histories: Vec<WithdrawHistory>,
 }
 
 impl From<Block> for BlockData {
@@ -34,7 +36,15 @@ impl From<Block> for BlockData {
           (transaction, txid)
         })
         .collect(),
+      withdraw_histories: vec![],
     }
+  }
+}
+
+impl BlockData {
+  pub fn set_withdraw_history(mut self, withdraw_histories: Vec<WithdrawHistory>) -> Self {
+    self.withdraw_histories = withdraw_histories;
+    self
   }
 }
 
@@ -77,13 +87,20 @@ impl Updater<'_> {
       Some(progress_bar)
     };
 
-    let rx = Self::fetch_blocks_from(self.index, self.height)?;
+    let unisat_swap_start_height = self.index.settings.first_unisat_swap_height;
+    let rx = Self::fetch_blocks_from(self.index, self.height, unisat_swap_start_height)?;
 
     let (mut output_sender, mut txout_receiver) = Self::spawn_fetcher(self.index)?;
 
     let mut uncommitted = 0;
     let mut utxo_cache = HashMap::new();
     while let Ok(block) = rx.recv() {
+      log::info!(
+        "start to index block, block hash is {:?}, updater height is: {}, withdraw history length is {}",
+        block.header.block_hash(),
+        self.height,
+        block.withdraw_histories.len(),
+      );
       self.index_block(
         &mut output_sender,
         &mut txout_receiver,
@@ -156,9 +173,66 @@ impl Updater<'_> {
     Ok(())
   }
 
+  fn fetch_withdraw_history_list(
+    block_hash: BlockHash,
+    height: u32,
+    unisat_client: &UnisatClient,
+  ) -> Result<Vec<WithdrawHistory>> {
+    // TODO: need to fix the max_retry
+    let max_retry = 10;
+    let mut retry = 0;
+    let start_time = std::time::Instant::now();
+    let history_list = loop {
+      if retry > max_retry {
+        bail!("max retry to get the withdraw history from unisat");
+      }
+      let Ok(unisat_resp) = unisat_client.get_withdraw_history(block_hash) else {
+        retry += 1;
+        log::error!("get withdraw history from unisat failed, retry {retry}");
+        std::thread::sleep(Duration::from_secs(5));
+        continue;
+      };
+      if unisat_resp.code != 0 {
+        log::error!(
+          "get unisat withdraw history with error response: {:?}",
+          unisat_resp
+        );
+        bail!("unisat response error: {}", unisat_resp.msg);
+      } else {
+        let Some(withdraw_history_data) = unisat_resp.data else {
+          std::thread::sleep(Duration::from_secs(5));
+          retry += 1;
+          log::error!("unisat response missing data, retry: {retry}");
+          continue;
+        };
+        if withdraw_history_data.height < height {
+          log::warn!(
+            "current unisat block height {} is less than {}",
+            withdraw_history_data.height,
+            height
+          );
+          std::thread::sleep(Duration::from_secs(5));
+          bail!(
+            "current unisat block height {} is less than {}",
+            withdraw_history_data.height,
+            height
+          );
+        } else {
+          break withdraw_history_data.detail;
+        }
+      }
+    };
+    log::info!(
+      "get unisat block history for height {height} use: {:?}",
+      start_time.elapsed()
+    );
+    Ok(history_list)
+  }
+
   fn fetch_blocks_from(
     index: &Index,
     mut height: u32,
+    unisat_swap_start_height: u32,
   ) -> Result<std::sync::mpsc::Receiver<BlockData>> {
     let (tx, rx) = std::sync::mpsc::sync_channel(32);
 
@@ -167,6 +241,7 @@ impl Updater<'_> {
     let height_limit = index.height_limit;
 
     let client = index.settings.bitcoin_rpc_client(None)?;
+    let unisat_client = index.settings.unisat_swap_client();
 
     thread::spawn(move || loop {
       if let Some(height_limit) = height_limit {
@@ -175,15 +250,20 @@ impl Updater<'_> {
         }
       }
 
-      match Self::get_block_with_retries(&client, height, first_index_height) {
-        Ok(Some(block)) => {
+      match Self::get_block_with_retries(
+        &client,
+        &unisat_client,
+        height,
+        unisat_swap_start_height,
+        first_index_height,
+      ) {
+        Ok(block) => {
           if let Err(err) = tx.send(block.into()) {
             log::info!("Block receiver disconnected: {err}");
             break;
           }
           height += 1;
         }
-        Ok(None) => break,
         Err(err) => {
           log::error!("failed to fetch block {height}: {err}");
           break;
@@ -196,11 +276,14 @@ impl Updater<'_> {
 
   fn get_block_with_retries(
     client: &Client,
+    unisat_client: &UnisatClient,
     height: u32,
+    unisat_swap_start_height: u32,
     first_index_height: u32,
-  ) -> Result<Option<Block>> {
+  ) -> Result<BlockData> {
     let mut errors = 0;
-    loop {
+    // get the block form btc node
+    let block = loop {
       match client
         .get_block_hash(height.into())
         .into_option()
@@ -234,9 +317,45 @@ impl Updater<'_> {
 
           thread::sleep(Duration::from_secs(seconds));
         }
-        Ok(result) => return Ok(result),
+        Ok(Some(result)) => break result,
+        Ok(None) => {
+          let seconds = 1 << errors;
+          log::warn!("failed to fetch block {height}, retrying in {seconds}s");
+
+          if seconds > 120 {
+            log::error!("would sleep for more than 120s, giving up");
+            bail!("get block failed");
+          }
+          thread::sleep(Duration::from_secs(seconds));
+        }
+      }
+    };
+    // get the withdraw history from unisat server if the block height satisfied
+    let withdraw_history_list = if height >= unisat_swap_start_height {
+      Self::fetch_withdraw_history_list(block.block_hash(), height, unisat_client)?
+    } else {
+      vec![]
+    };
+    // 检查该区块是否存在这笔交易
+    let mut block_txids = block.txdata.iter().map(|tx| tx.compute_txid());
+    for withdraw_history in withdraw_history_list.iter() {
+      if block_txids
+        .find(|txid| txid == &withdraw_history.txid)
+        .is_none()
+      {
+        bail!(
+          "can't find withdraw history tx with txid {} in block",
+          withdraw_history.txid
+        );
       }
     }
+    let valid_withdraw_history_list: Vec<_> = withdraw_history_list
+      .into_iter()
+      .filter(|history| history.valid)
+      .collect();
+
+    let block_data = BlockData::from(block).set_withdraw_history(valid_withdraw_history_list);
+    Ok(block_data)
   }
 
   fn spawn_fetcher(index: &Index) -> Result<(mpsc::Sender<OutPoint>, broadcast::Receiver<TxOut>)> {

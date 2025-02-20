@@ -67,6 +67,13 @@ pub(super) struct InscriptionUpdater<'a, 'tx> {
   pub(super) block_bundle_messages: &'a mut HashMap<Txid, Vec<BundleMessage>>,
 }
 
+pub fn address_from_script(script: &Script, chain: Chain) -> String {
+  chain
+    .address_from_script(script)
+    .map(|address| address.to_string())
+    .unwrap_or(script.script_hash().to_string())
+}
+
 impl InscriptionUpdater<'_, '_> {
   pub(super) fn index_inscriptions(
     &mut self,
@@ -82,6 +89,8 @@ impl InscriptionUpdater<'_, '_> {
     let mut id_counter = 0;
     let mut inscribed_offsets = BTreeMap::new();
     let jubilant = self.height >= index.settings.chain().jubilee_height();
+    let chain = index.settings.chain();
+    let address_black_list = index.settings.address_black_list();
     let mut total_input_value = 0;
     let total_output_value = tx
       .output
@@ -92,7 +101,9 @@ impl InscriptionUpdater<'_, '_> {
     let envelopes = ParsedEnvelope::from_transaction(tx);
     let has_new_inscriptions = !envelopes.is_empty();
     let mut envelopes = envelopes.into_iter().peekable();
+    let now = std::time::Instant::now();
 
+    let mut input_addresses = HashMap::new();
     for (input_index, txin) in tx.input.iter().enumerate() {
       // skip subsidy since no inscriptions possible
       if txin.previous_output.is_null() {
@@ -146,7 +157,13 @@ impl InscriptionUpdater<'_, '_> {
 
       let offset = total_input_value;
 
-      let input_value = input_utxo_entries[input_index].total_value();
+      let input_entry = &input_utxo_entries[input_index];
+      let script = Script::from_bytes(input_entry.script_pubkey());
+      if let Ok(address) = chain.address_from_script(&script) {
+        input_addresses.insert(txin.clone(), address.to_string());
+      }
+
+      let input_value = input_entry.total_value();
       total_input_value += input_value;
 
       // go through all inscriptions in this input
@@ -302,6 +319,18 @@ impl InscriptionUpdater<'_, '_> {
 
     let mut new_locations = Vec::new();
     let mut output_value = 0;
+
+    let all_output_address: Vec<_> = tx
+      .output
+      .iter()
+      .map(|txout| {
+        let script = &txout.script_pubkey;
+        // TODO: 从外部传入
+        let chain = Chain::Mainnet;
+        address_from_script(script, chain)
+      })
+      .collect();
+
     for (vout, txout) in tx.output.iter().enumerate() {
       let end = output_value + txout.value.to_sat();
 
@@ -327,6 +356,27 @@ impl InscriptionUpdater<'_, '_> {
       }
 
       output_value = end;
+    }
+
+    log::info!("------> start to index envelopes step4, txid: {txid:?}, tx output length is: {}, time used: {:?}",  new_locations.len(), now.elapsed());
+    let mut i = 0;
+    let total = new_locations.len();
+    // check address in black list
+    let mut in_black_list = false;
+
+    for addr in all_output_address.iter() {
+      if address_black_list.contains(&addr) {
+        in_black_list = true;
+        break;
+      }
+    }
+    if !in_black_list {
+      for (_txin, addr) in input_addresses.iter() {
+        if address_black_list.contains(addr) {
+          in_black_list = true;
+          break;
+        }
+      }
     }
 
     for (new_satpoint, flotsam, script_pub_key, op_return) in new_locations.into_iter() {

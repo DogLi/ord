@@ -12,6 +12,7 @@ pub enum ApiTxEvent {
   Mint(ApiMintEvent),
   InscribeTransfer(ApiInscribeTransferEvent),
   Transfer(ApiTransferEvent),
+  UnisatSwap(ApiUnisatSwapEvent),
   Error(ApiErrorEvent),
 }
 
@@ -74,6 +75,18 @@ impl From<BRC20Receipt> for ApiTxEvent {
         amount: transfer_event.amount.to_string(),
         msg: "ok".to_string(),
         event: event.op_type,
+      }),
+      Ok(BRC20Event::UnisatSwap(uniswap_event)) => Self::UnisatSwap(ApiUnisatSwapEvent {
+        event: BRC20OpType::UnisatSwapWithdraw,
+        tick: uniswap_event.tick.to_string(),
+        inscription_id: event.inscription_id,
+        inscription_number: event.inscription_number,
+        old_satpoint: event.old_satpoint,
+        new_satpoint: event.new_satpoint,
+        amount: uniswap_event.amount.to_string(),
+        from: event.sender.into(),
+        to: event.receiver.into(),
+        valid: true,
       }),
       Err(err) => Self::Error(ApiErrorEvent {
         inscription_id: event.inscription_id,
@@ -175,6 +188,49 @@ pub struct ApiTransferEvent {
   pub valid: bool,
   pub msg: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiUnisatSwapEvent {
+  /// Event type.
+  #[serde(rename = "type")]
+  pub event: BRC20OpType,
+  /// The ticker of transfer.
+  pub tick: String,
+  /// The inscription id.
+  pub inscription_id: InscriptionId,
+  /// The inscription number.
+  pub inscription_number: i32,
+  /// The inscription satpoint of the transaction input.
+  pub old_satpoint: SatPoint,
+  /// The inscription satpoint of the transaction output.
+  pub new_satpoint: SatPoint,
+  /// The amount of transfer.
+  pub amount: String,
+  /// The message sender which is an address or script pubkey hash.
+  pub from: ApiUtxoAddress,
+  /// The message receiver which is an address or script pubkey hash.
+  pub to: ApiUtxoAddress,
+  /// Executed state.
+  pub valid: bool,
+}
+
+// impl ApiUnisatSwapEvent {
+//   fn parse(event: &Receipt, unisat_swap_event: &brc20_store::UnisatSwapEvent) -> Self {
+//     Self {
+//       tick: unisat_swap_event.tick.to_string(),
+//       inscription_id: event.inscription_id.to_string(),
+//       inscription_number: event.inscription_number,
+//       old_satpoint: event.old_satpoint.to_string(),
+//       new_satpoint: event.new_satpoint.to_string(),
+//       amount: unisat_swap_event.amount.to_string(),
+//       from: event.from.clone().into(),
+//       to: event.to.clone().into(),
+//       valid: true,
+//       event: BRC20OpType::UnisatSwapWithdraw,
+//     }
+//   }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
