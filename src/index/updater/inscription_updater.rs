@@ -325,8 +325,7 @@ impl InscriptionUpdater<'_, '_> {
       .iter()
       .map(|txout| {
         let script = &txout.script_pubkey;
-        // TODO: 从外部传入
-        let chain = Chain::Mainnet;
+        let chain = index.settings.chain();
         address_from_script(script, chain)
       })
       .collect();
@@ -358,7 +357,6 @@ impl InscriptionUpdater<'_, '_> {
       output_value = end;
     }
 
-    log::info!("------> start to index envelopes step4, txid: {txid:?}, tx output length is: {}, time used: {:?}",  new_locations.len(), now.elapsed());
     let mut i = 0;
     let total = new_locations.len();
     // check address in black list
@@ -379,20 +377,34 @@ impl InscriptionUpdater<'_, '_> {
       }
     }
 
+    let new_locations_len = new_locations.len();
     for (new_satpoint, flotsam, script_pub_key, op_return) in new_locations.into_iter() {
       let output_utxo_entry =
         &mut output_utxo_entries[usize::try_from(new_satpoint.outpoint.vout).unwrap()];
 
-      self.update_inscription_location(
-        input_sat_ranges,
-        flotsam,
-        new_satpoint,
-        Some(script_pub_key),
-        op_return,
-        Some(output_utxo_entry),
-        utxo_cache,
-        index,
-      )?;
+      let transformed = flotsam.old_satpoint.outpoint.txid != flotsam.inscription_id.txid;
+      let skip = transformed
+        && matches!(flotsam.origin, Origin::Old { .. })
+        && in_black_list
+        && new_locations_len > 20_000;
+      let need_print_log = i % 2000 == 0;
+      let percent = (i as f64 / total as f64) * 100.;
+      if need_print_log {
+        log::info!("------> indexing inscriptions, height: {}, txid: {txid:?}, index: {i}/{:.2}%, time used: {:?}", self.height, percent, now.elapsed());
+      }
+      if !skip {
+        self.update_inscription_location(
+          input_sat_ranges,
+          flotsam,
+          new_satpoint,
+          Some(script_pub_key),
+          op_return,
+          Some(output_utxo_entry),
+          utxo_cache,
+          index,
+        )?;
+      }
+      i += 1;
     }
 
     if is_coinbase {

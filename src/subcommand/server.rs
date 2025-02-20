@@ -190,6 +190,10 @@ impl Server {
         )
         .route("/ord/outpoint/:outpoint/info", get(okx::ord::ord_outpoint))
         .route(
+          "/ord/outpoint/info_batch",
+          post(okx::ord::ord_outpoint_batch),
+        )
+        .route(
           "/ord/tx/:txid/inscriptions",
           get(okx::ord::ord_txid_inscriptions),
         )

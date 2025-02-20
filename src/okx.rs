@@ -195,8 +195,12 @@ impl OkxUpdater {
           "execute unisat withdraw history, the txid is: {:?}",
           bundle_message.txid
         );
-        // TODO: fix sequence number
-        let sequence_number = 0;
+        // get the sequence_number
+        let sequence_number = bundle_messages
+          .iter()
+          .find(|i| i.txid == withdraw_history.txid)
+          .map(|i| i.sequence_number)
+          .unwrap_or(0);
         let receipt = self
           .execute_unisat_swap(sequence_number, context, withdraw_history)
           .context("execute unisat swap failed")?;
