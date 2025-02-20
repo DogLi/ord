@@ -195,10 +195,9 @@ impl OkxUpdater {
           "execute unisat withdraw history, the txid is: {:?}",
           bundle_message.txid
         );
-        // get the sequence_number
         let sequence_number = bundle_messages
           .iter()
-          .find(|i| i.txid == withdraw_history.txid)
+          .find(|i| i.inscription_id == withdraw_history.inscription_id)
           .map(|i| i.sequence_number)
           .unwrap_or(0);
         let receipt = self
@@ -313,7 +312,10 @@ fn process_withdraw_history(
 
   let to_overall =
     FixedPoint::new(to_balance.total, ticker_info.decimals).map_err(BRC20Error::NumericError)?;
+  let to_available = FixedPoint::new(to_balance.available, ticker_info.decimals)
+    .map_err(BRC20Error::NumericError)?;
   to_balance.total = (to_overall + amount).to_u128_and_scale().0;
+  to_balance.available = (to_available + amount).to_u128_and_scale().0;
   log::info!("process withdraw history at height {}, txid:{:?}, add {}{} to address {:?}, {:?} + {:?} = {:?}",
     withdraw_history.height,
     withdraw_history.txid,

@@ -2675,6 +2675,7 @@ dependencies = [
  "humantime",
  "hyper 0.14.32",
  "indicatif",
+ "itertools",
  "lazy_static",
  "log",
  "log4rs",
