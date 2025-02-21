@@ -318,7 +318,7 @@ impl Settings {
       index_btc_domain: get_bool("INDEX_BTC_DOMAIN"),
       index_brc20: get_bool("INDEX_BRC20"),
       first_brc20_height: get_u32("FRIST_BRC20_HEIGHT")?,
-      first_unisat_swap_height: get_u32("FIRST_UNISAT_SWAP_HEIGHT")?.unwrap(),
+      first_unisat_swap_height: get_u32("FIRST_UNISAT_SWAP_HEIGHT")?.unwrap_or_default(),
       unisat_api_key: get_string("UNISAT_API_KEY").unwrap_or_default(),
       // TODO: get from env
       fractal_address_black_list: vec![],
