@@ -158,9 +158,11 @@ impl InscriptionUpdater<'_, '_> {
       let offset = total_input_value;
 
       let input_entry = &input_utxo_entries[input_index];
-      let script = Script::from_bytes(input_entry.script_pubkey());
-      if let Ok(address) = chain.address_from_script(&script) {
-        input_addresses.insert(txin.clone(), address.to_string());
+      if let Some(script_pubkey) = input_entry.script_pubkey_option() {
+        let script = Script::from_bytes(script_pubkey);
+        if let Ok(address) = chain.address_from_script(&script) {
+          input_addresses.insert(txin.clone(), address.to_string());
+        }
       }
 
       let input_value = input_entry.total_value();

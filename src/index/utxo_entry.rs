@@ -157,6 +157,10 @@ impl<'a> ParsedUtxoEntry<'a> {
     self.script_pubkey.unwrap()
   }
 
+  pub fn script_pubkey_option(&self) -> Option<&'a [u8]> {
+    self.script_pubkey
+  }
+
   pub fn inscriptions(&self) -> &'a [u8] {
     self.inscriptions.unwrap()
   }
