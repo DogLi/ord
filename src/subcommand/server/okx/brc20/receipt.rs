@@ -1,7 +1,10 @@
 use super::*;
-use crate::okx::brc20::{
-  event::{BRC20Event, BRC20OpType},
-  BRC20Receipt,
+use crate::{
+  okx::brc20::{
+    event::{BRC20Event, BRC20OpType},
+    BRC20Receipt,
+  },
+  subcommand::wallet::create,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -12,6 +15,11 @@ pub enum ApiTxEvent {
   Mint(ApiMintEvent),
   InscribeTransfer(ApiInscribeTransferEvent),
   Transfer(ApiTransferEvent),
+  CreateModule(ApiCreateModuleEvent),
+  InscribeWithdraw(ApiInscribeWithdrawEvent),
+  TransferWithdraw(ApiTransferWithdrawEvent),
+  InscribeCommit(ApiInscribeCommitEvent),
+  TransferCommit(ApiTransferCommitEvent),
   Error(ApiErrorEvent),
 }
 
@@ -75,6 +83,84 @@ impl From<BRC20Receipt> for ApiTxEvent {
         msg: "ok".to_string(),
         event: event.op_type,
       }),
+      Ok(BRC20Event::CreateModule(create_module_event)) => {
+        Self::CreateModule(ApiCreateModuleEvent {
+          inscription_id: event.inscription_id,
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          valid: true,
+          msg: "ok".to_string(),
+          event: event.op_type,
+          name: create_module_event.name,
+          source: create_module_event.source,
+          init: ApiCreateModuleInit {
+            swap_fee_rate: create_module_event.init.swap_fee_rate,
+            gas_tick: create_module_event.init.gas_tick,
+            gas_to: create_module_event.init.gas_to,
+            fee_to: create_module_event.init.fee_to,
+            sequencer: create_module_event.init.sequencer,
+          },
+        })
+      }
+      Ok(BRC20Event::InscribeWithdraw(withdraw_event)) => {
+        Self::InscribeWithdraw(ApiInscribeWithdrawEvent {
+          inscription_id: event.inscription_id,
+          inscription_number: event.inscription_number,
+          satpoint: event.new_satpoint,
+          amount: withdraw_event.amount.to_string(),
+          from: event.sender.into(),
+          to: event.receiver.into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: event.op_type,
+          tick: withdraw_event.ticker,
+          module: withdraw_event.module,
+        })
+      }
+      Ok(BRC20Event::TransferWithdraw(withdraw_event)) => {
+        Self::TransferWithdraw(ApiTransferWithdrawEvent {
+          inscription_id: event.inscription_id,
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          amount: withdraw_event.amount.to_string(),
+          from: event.sender.into(),
+          to: event.receiver.into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: event.op_type,
+          tick: withdraw_event.ticker,
+          module: withdraw_event.module,
+        })
+      }
+      Ok(BRC20Event::InscribeCommit(commit_event)) => {
+        Self::InscribeCommit(ApiInscribeCommitEvent {
+          inscription_id: event.inscription_id,
+          inscription_number: event.inscription_number,
+          satpoint: event.new_satpoint,
+          from: event.sender.into(),
+          to: event.receiver.into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: event.op_type,
+          module: commit_event.module,
+        })
+      }
+      Ok(BRC20Event::TransferCommit(commit_event)) => {
+        Self::TransferCommit(ApiTransferCommitEvent {
+          inscription_id: event.inscription_id,
+          inscription_number: event.inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          from: event.sender.into(),
+          to: event.receiver.into(),
+          valid: true,
+          msg: "ok".to_string(),
+          event: event.op_type,
+          module: commit_event.module,
+        })
+      }
       Err(err) => Self::Error(ApiErrorEvent {
         inscription_id: event.inscription_id,
         inscription_number: event.inscription_number,
@@ -174,6 +260,94 @@ pub struct ApiTransferEvent {
   pub to: ApiUtxoAddress,
   pub valid: bool,
   pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiCreateModuleEvent {
+  pub event: BRC20OpType,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: i32,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub valid: bool,
+  pub msg: String,
+
+  pub name: String,
+  pub source: String,
+  pub init: ApiCreateModuleInit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiCreateModuleInit {
+  pub swap_fee_rate: String,
+  pub gas_tick: String,
+  pub gas_to: String,
+  pub fee_to: String,
+  pub sequencer: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiInscribeWithdrawEvent {
+  pub event: BRC20OpType,
+  pub tick: BRC20Ticker,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: i32,
+  pub satpoint: SatPoint,
+  pub amount: String,
+  pub from: ApiUtxoAddress,
+  pub to: ApiUtxoAddress,
+  pub valid: bool,
+  pub msg: String,
+  pub module: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiTransferWithdrawEvent {
+  pub event: BRC20OpType,
+  pub tick: BRC20Ticker,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: i32,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub amount: String,
+  pub from: ApiUtxoAddress,
+  pub to: ApiUtxoAddress,
+  pub valid: bool,
+  pub msg: String,
+  pub module: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiInscribeCommitEvent {
+  pub event: BRC20OpType,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: i32,
+  pub satpoint: SatPoint,
+  pub from: ApiUtxoAddress,
+  pub to: ApiUtxoAddress,
+  pub valid: bool,
+  pub msg: String,
+  pub module: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiTransferCommitEvent {
+  pub event: BRC20OpType,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: i32,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub from: ApiUtxoAddress,
+  pub to: ApiUtxoAddress,
+  pub valid: bool,
+  pub msg: String,
+  pub module: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

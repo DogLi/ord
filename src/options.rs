@@ -106,4 +106,12 @@ pub struct Options {
     help = "Disable tracking of invalid BRC-20 inscriptions. [default: false]"
   )]
   pub(crate) disable_invalid_brc20_tracking: bool,
+
+  // UniSat defined options.
+  #[arg(long, help = "Index BRC-20 swaps.")]
+  pub(crate) index_brc20_swap: bool,
+  #[arg(long, help = "Inscription that define module functionality.")]
+  pub(crate) module_swap_source_inscription_id: Option<String>,
+  #[arg(long, help = "Zero address pk script for BRC-20 swaps.")]
+  pub(crate) brc20_module_swap_zero_address_pk_script: Option<String>,
 }

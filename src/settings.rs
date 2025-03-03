@@ -36,6 +36,9 @@ pub struct Settings {
   index_btc_domain: bool,
   index_brc20: bool,
   disable_invalid_brc20_tracking: bool,
+
+  index_brc20_swap: bool,
+  module_swap_source_inscription_id: Option<String>,
 }
 
 impl Settings {
@@ -158,6 +161,11 @@ impl Settings {
       index_brc20: self.index_brc20 || source.index_brc20,
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking
         || source.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: self.index_brc20_swap || source.index_brc20_swap,
+      module_swap_source_inscription_id: self
+        .module_swap_source_inscription_id
+        .or(source.module_swap_source_inscription_id),
     }
   }
 
@@ -202,6 +210,9 @@ impl Settings {
       index_btc_domain: options.index_btc_domain,
       index_brc20: options.index_brc20,
       disable_invalid_brc20_tracking: options.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: options.index_brc20_swap,
+      module_swap_source_inscription_id: options.module_swap_source_inscription_id,
     }
   }
 
@@ -300,6 +311,8 @@ impl Settings {
       index_btc_domain: get_bool("INDEX_BTC_DOMAIN"),
       index_brc20: get_bool("INDEX_BRC20"),
       disable_invalid_brc20_tracking: get_bool("DISABLE_INVALID_BRC20_TRACKING"),
+      index_brc20_swap: get_bool("INDEX_BRC20_SWAP"),
+      module_swap_source_inscription_id: get_string("MODULE_SWAP_SOURCE_INSCRIPTION_ID"),
     })
   }
 
@@ -338,6 +351,9 @@ impl Settings {
       index_btc_domain: false,
       index_brc20: false,
       disable_invalid_brc20_tracking: false,
+
+      index_brc20_swap: false,
+      module_swap_source_inscription_id: None,
     }
   }
 
@@ -420,6 +436,9 @@ impl Settings {
       index_btc_domain: self.index_btc_domain,
       index_brc20: self.index_brc20,
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: self.index_brc20_swap,
+      module_swap_source_inscription_id: self.module_swap_source_inscription_id,
     })
   }
 
@@ -477,22 +496,26 @@ impl Settings {
       )
     })?;
 
+    #[derive(serde::Deserialize)]
+    struct ChainEnv {
+      chain: String,
+    }
     let mut checks = 0;
-    let rpc_chain = loop {
-      match client.get_blockchain_info() {
-        Ok(blockchain_info) => {
-          break match blockchain_info.chain.to_string().as_str() {
-            "bitcoin" => Chain::Mainnet,
-            "regtest" => Chain::Regtest,
+    let rpc_chain: Chain = loop {
+      let chain_info: Result<ChainEnv, bitcoincore_rpc::Error> =
+        client.call("getblockchaininfo", &[]);
+      match chain_info {
+        Ok(chain_env) => {
+          break match chain_env.chain.as_str() {
+            "main" => Chain::Mainnet,
+            "test" => Chain::Testnet,
             "signet" => Chain::Signet,
-            "testnet" => Chain::Testnet,
-            "testnet4" => Chain::Testnet4,
-            other => bail!("Bitcoin RPC server on unknown chain: {other}"),
+            other => bail!("Fractal Bitcoin RPC server on unknown chain: {other}"),
           }
         }
         Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::Error::Rpc(err)))
           if err.code == -28 => {}
-        Err(err) => bail!("Failed to connect to Bitcoin Core RPC at `{rpc_url}`:  {err}"),
+        Err(err) => bail!("Failed to connect to Fractal Bitcoin Core RPC at `{rpc_url}`:  {err}"),
       }
 
       ensure! {
@@ -503,6 +526,7 @@ impl Settings {
       checks += 1;
       thread::sleep(Duration::from_millis(100));
     };
+    log::debug!("Connected to Bitcoin Core RPC at `{rpc_url}` on chain `{rpc_chain}`");
 
     let ord_chain = self.chain();
 
@@ -654,6 +678,10 @@ impl Settings {
     self.index_brc20
   }
 
+  pub(crate) fn index_brc20_swap(&self) -> bool {
+    self.index_brc20_swap
+  }
+
   pub(crate) fn disable_invalid_brc20_tracking(&self) -> bool {
     self.disable_invalid_brc20_tracking
   }
@@ -664,6 +692,13 @@ impl Settings {
 
   pub(crate) fn index_btc_domain(&self) -> bool {
     self.index_btc_domain
+  }
+
+  pub(crate) fn brc20_swap_source(&self) -> String {
+    match &self.module_swap_source_inscription_id {
+      Some(brc20_swap_source) => brc20_swap_source.to_string(),
+      None => String::new(),
+    }
   }
 }
 
@@ -1145,6 +1180,8 @@ mod tests {
       ("INDEX_BTC_DOMAIN", "1"),
       ("INDEX_BRC20", "1"),
       ("DISABLE_INVALID_BRC20_TRACKING", "1"),
+      ("INDEX_BRC20_SWAP", "1"),
+      ("MODULE_SWAP_SOURCE_INSCRIPTION_ID", "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0"),
     ]
     .into_iter()
     .map(|(key, value)| (key.into(), value.into()))
@@ -1196,6 +1233,11 @@ mod tests {
         index_btc_domain: true,
         index_brc20: true,
         disable_invalid_brc20_tracking: true,
+
+        index_brc20_swap: true,
+        module_swap_source_inscription_id: Some(
+          "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".into()
+        ),
       }
     );
   }
@@ -1235,6 +1277,8 @@ mod tests {
           "--index-btc-domain",
           "--index-brc20",
           "--disable-invalid-brc20-tracking",
+          "--index-brc20-swap",
+          "--module_swap_source_inscription_id=34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0",
         ])
         .unwrap()
       ),
@@ -1271,6 +1315,9 @@ mod tests {
         index_btc_domain: true,
         index_brc20: true,
         disable_invalid_brc20_tracking: true,
+
+        index_brc20_swap: true,
+        module_swap_source_inscription_id: Some("34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".into()),
       }
     );
   }

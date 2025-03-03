@@ -1,8 +1,16 @@
+use std::ops::Add;
+
+use crate::okx::{
+  brc20::{brc20_decimal::Brc20Decimal, entry::BRC20ModuleTokenBalance},
+  utils::get_module_from_script,
+};
+
 use super::*;
 
 impl BRC20ExecutionMessage {
   pub(super) fn execute_transfer(
     &self,
+    index: &Index,
     context: &mut TableContext,
   ) -> Result<BRC20Receipt, ExecutionError> {
     let BRC20Operation::Transfer { ticker, amount } = &self.operation else {
@@ -62,6 +70,40 @@ impl BRC20ExecutionMessage {
 
       context.update_brc20_ticker_info(&ticker, ticker_info)?;
     }
+
+    // brc20 swap
+    let script_buf = receiver.to_script(&index.chain());
+    let module_id = get_module_from_script(&script_buf);
+    match module_id {
+      Ok(module_id_str) => {
+        log::info!(
+          "brc20swap transfer: {:?}, inscription_id: {:?}",
+          self.txid,
+          self.inscription_id
+        );
+        let is_deploy = context.is_module_already_deployed(&module_id_str)?;
+        if is_deploy {
+          let module_receiver = self.sender.clone();
+          let mut receiver_module_balance = context
+            .load_brc20_module_address_token_balance(&module_receiver, &module_id_str, &ticker)?
+            .unwrap_or(BRC20ModuleTokenBalance::new());
+          receiver_module_balance.swap_account_balance = receiver_module_balance
+            .swap_account_balance
+            .add(Brc20Decimal::from_u128(*amount, 0).unwrap());
+          receiver_module_balance.swap_account_balance_safe = receiver_module_balance
+            .swap_account_balance_safe
+            .add(Brc20Decimal::from_u128(*amount, 0).unwrap());
+          context.update_brc20_module_address_token_balance(
+            &module_receiver,
+            &module_id_str,
+            &ticker,
+            receiver_module_balance,
+          )?;
+        }
+      }
+      Err(_) => {}
+    }
+
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,

@@ -633,6 +633,7 @@ impl InscriptionUpdater<'_, '_> {
 
       if let Some(message) = BundleMessage::from_okx_inscription_event(event, self.height, index)? {
         // We should decide whether to track the inscription based on the message.
+        // FIXME: should we track brc20 swap?
         should_tracking_inscription = message.should_track(index);
         self
           .block_bundle_messages

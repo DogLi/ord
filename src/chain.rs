@@ -37,7 +37,7 @@ impl Chain {
 
   pub(crate) fn first_inscription_height(self) -> u32 {
     match self {
-      Self::Mainnet => 767430,
+      Self::Mainnet => 21000,
       Self::Regtest => 0,
       Self::Signet => 112402,
       Self::Testnet => 2413343,
@@ -82,6 +82,10 @@ impl Chain {
 
   pub(crate) fn address_from_script(self, script: &Script) -> Result<Address, SnafuError> {
     Address::from_script(script, self.network()).snafu_context(error::AddressConversion)
+  }
+
+  pub(crate) fn to_script_pubkey(self, address: &Address) -> ScriptBuf {
+    address.script_pubkey()
   }
 
   pub(crate) fn join_with_data_dir(self, data_dir: impl AsRef<Path>) -> PathBuf {

@@ -459,6 +459,15 @@ impl Updater<'_> {
     let index_inscriptions = self.height >= self.index.settings.first_inscription_height()
       && self.index.index_inscriptions;
 
+    let mut brc20_module_info = wtx.open_table(BRC20_MODULE_INFO)?;
+    let mut brc20_module_address_ticker_balances =
+      wtx.open_table(BRC20_MODULE_ADDRESS_TICKER_BALANCE)?;
+    let mut brc20_module_swap_poolpair_balances = wtx.open_table(BRC20_MODULE_SWAP_POOL_BALANCES)?;
+    let mut brc20_swap_commit_info = wtx.open_table(BRC20_SWAP_COMMIT_INFO)?;
+    let mut brc20_module_inscribe_withdraws = wtx.open_table(BRC20_MODULE_INSCRIBE_WITHDRAW)?;
+    let mut brc20_module_lp_token_balance =
+      wtx.open_table(BRC20_MODULE_ADDRESS_LP_TOKEN_BALANCE)?;
+
     // If the receiver still has inputs something went wrong in the last
     // block and we shouldn't recover from this and commit the last block
     if index_inscriptions {
@@ -760,6 +769,12 @@ impl Updater<'_> {
         &mut sequence_number_to_collection_type,
         &mut bitmap_block_height_to_sequence_number,
         &mut btc_domain_to_sequence_number,
+        &mut brc20_module_info,
+        &mut brc20_module_address_ticker_balances,
+        &mut brc20_module_swap_poolpair_balances,
+        &mut brc20_swap_commit_info,
+        &mut brc20_module_inscribe_withdraws,
+        &mut brc20_module_lp_token_balance,
       );
 
       let mut okx_updater = OkxUpdater {

@@ -1,4 +1,4 @@
-use super::*;
+use super::{brc20_decimal::Brc20Decimal, *};
 use event::{BRC20Event, BRC20OpType};
 
 pub type BRC20BalanceValue = [u8];
@@ -73,6 +73,247 @@ pub struct BRC20Receipt {
   pub result: Result<BRC20Event, BRC20Error>,
 }
 
+pub type BRC20ModuleInfoValue = [u8];
+impl_bincode_dynamic_entry!(BRC20ModuleInfo, BRC20ModuleInfoValue);
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BRC20ModuleInfo {
+  pub id: String,
+  pub name: String,
+  pub deployer_pk_script: String,
+  pub sequencer_pk_script: String,
+  pub gas_to_pk_script: String,
+  pub lp_fee_pk_script: String,
+
+  pub fee_rate_swap: Brc20Decimal,
+  pub gas_tick: String,
+
+  pub chain_commit_id: Option<String>,
+  pub commit_id: Option<String>,
+}
+
+pub type BRC20ModuleAddressTokenBalanceKeyValue = [u8];
+impl_bincode_dynamic_entry!(
+  BRC20ModuleAddressTokenBalanceKey,
+  BRC20ModuleAddressTokenBalanceKeyValue
+);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModuleAddressTokenBalanceKey {
+  pub address: UtxoAddress,
+  pub module_id: String,
+  pub ticker: BRC20LowerCaseTicker,
+}
+
+pub type BRC20ModuleTokenBalanceValue = [u8];
+impl_bincode_dynamic_entry!(BRC20ModuleTokenBalance, BRC20ModuleTokenBalanceValue);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModuleTokenBalance {
+  pub swap_account_balance_safe: Brc20Decimal,   // 不实现
+  pub module_account_balance_safe: Brc20Decimal, // 不实现
+
+  pub swap_account_balance: Brc20Decimal,
+  pub available_balance: Brc20Decimal,
+  pub available_balance_safe: Brc20Decimal, // 不实现
+  pub pending_withdrawal_amount: Brc20Decimal,
+}
+
+impl BRC20ModuleTokenBalance {
+  pub fn new() -> Self {
+    Self {
+      swap_account_balance: Brc20Decimal::from_u128(0, 0).unwrap(),
+      available_balance: Brc20Decimal::from_u128(0, 0).unwrap(),
+      pending_withdrawal_amount: Brc20Decimal::from_u128(0, 0).unwrap(),
+
+      // 不实现
+      swap_account_balance_safe: Brc20Decimal::from_u128(0, 0).unwrap(),
+      module_account_balance_safe: Brc20Decimal::from_u128(0, 0).unwrap(),
+      available_balance_safe: Brc20Decimal::from_u128(0, 0).unwrap(),
+    }
+  }
+
+  pub fn new_with_fields(
+    swap_account_balance: Brc20Decimal,
+    available_balance: Brc20Decimal,
+    pending_withdrawal_amount: Brc20Decimal,
+  ) -> Self {
+    Self {
+      swap_account_balance,
+      available_balance,
+      pending_withdrawal_amount,
+
+      // 不实现
+      swap_account_balance_safe: Brc20Decimal::from_u128(0, 0).unwrap(),
+      module_account_balance_safe: Brc20Decimal::from_u128(0, 0).unwrap(),
+      available_balance_safe: Brc20Decimal::from_u128(0, 0).unwrap(),
+    }
+  }
+}
+
+pub type InscribeWithdrawValue = [u8];
+impl_bincode_dynamic_entry!(InscribeWithdraw, InscribeWithdrawValue);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InscribeWithdraw {
+  pub sender: UtxoAddress,
+  pub module_id: String,
+  pub ticker: BRC20LowerCaseTicker,
+  pub amount: Brc20Decimal,
+}
+
+pub type BRC20ModuleSwapPoolPairBalanceKeyValue = [u8];
+impl_bincode_dynamic_entry!(
+  BRC20ModuleSwapPoolPairBalanceKey,
+  BRC20ModuleSwapPoolPairBalanceKeyValue
+);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModuleSwapPoolPairBalanceKey {
+  pub module_id: String,
+  pub pool_pair: BRC20ModulePoolPair,
+}
+
+impl BRC20ModuleSwapPoolPairBalanceKey {
+  pub fn new(module_id: &String, pool_pair: &BRC20ModulePoolPair) -> Self {
+    Self {
+      module_id: module_id.clone(),
+      pool_pair: pool_pair.clone(),
+    }
+  }
+}
+
+pub type BRC20ModulePoolPairValue = [u8];
+impl_bincode_dynamic_entry!(BRC20ModulePoolPair, BRC20ModulePoolPairValue);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModulePoolPair(Box<[u8]>);
+impl BRC20ModulePoolPair {
+  pub fn new(token0: &BRC20Ticker, token1: &BRC20Ticker) -> Self {
+    let lower_case_token0 = token0.to_lowercase();
+    let lower_case_token1 = token1.to_lowercase();
+
+    let (first, second) = if lower_case_token0.to_string() >= lower_case_token1.to_string() {
+      (lower_case_token1, lower_case_token0)
+    } else {
+      (lower_case_token0, lower_case_token1)
+    };
+
+    let mut result = Vec::new();
+    let first_len = first.len() as u8;
+    result.push(first_len);
+    result.extend_from_slice(first.to_box().as_ref());
+    result.extend_from_slice(second.to_box().as_ref());
+
+    BRC20ModulePoolPair(result.into_boxed_slice())
+  }
+
+  pub fn starts_with(&self, ticker: &BRC20Ticker) -> bool {
+    let lower_case_ticker = ticker.to_lowercase();
+    let boxed_ticker = lower_case_ticker.to_box();
+    let ticker_bytes = boxed_ticker.as_ref();
+
+    let first_len = self.0[0] as usize;
+
+    if first_len != ticker_bytes.len() {
+      return false;
+    }
+
+    let first_ticker_start = 1;
+    let first_ticker_end = first_ticker_start + first_len;
+
+    if first_ticker_end > self.0.len() {
+      return false;
+    }
+
+    &self.0[first_ticker_start..first_ticker_end] == ticker_bytes
+  }
+}
+
+impl Display for BRC20ModulePoolPair {
+  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
+  }
+}
+
+pub type BRC20ModuleSwapPoolPairBalanceValue = [u8];
+impl_bincode_dynamic_entry!(
+  BRC20ModuleSwapPoolPairBalance,
+  BRC20ModuleSwapPoolPairBalanceValue
+);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModuleSwapPoolPairBalance {
+  pub tick_balance: [Brc20Decimal; 2],
+  pub lp_balance: Brc20Decimal,
+  pub last_root_k: Brc20Decimal,
+}
+
+impl BRC20ModuleSwapPoolPairBalance {
+  pub fn new() -> Self {
+    Self {
+      tick_balance: [
+        Brc20Decimal::from_u128(0, 0).unwrap(),
+        Brc20Decimal::from_u128(0, 0).unwrap(),
+      ],
+      lp_balance: Brc20Decimal::from_u128(0, 0).unwrap(),
+      last_root_k: Brc20Decimal::from_u128(0, 0).unwrap(),
+    }
+  }
+
+  pub fn new_with_balance(ticker1_balance: FixedPoint, ticker2_balance: FixedPoint) -> Self {
+    Self {
+      tick_balance: [
+        Brc20Decimal::from_fix_point(ticker1_balance),
+        Brc20Decimal::from_fix_point(ticker2_balance),
+      ],
+      lp_balance: Brc20Decimal::from_u128(0, 0).unwrap(),
+      last_root_k: Brc20Decimal::from_u128(0, 0).unwrap(),
+    }
+  }
+}
+
+// LP Token Balance
+pub type BRC20ModuleAddressLPTokenBalanceKeyValue = [u8];
+impl_bincode_dynamic_entry!(
+  BRC20ModuleAddressLPTokenBalanceKey,
+  BRC20ModuleAddressLPTokenBalanceKeyValue
+);
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModuleAddressLPTokenBalanceKey {
+  pub module_id: String,
+  pub address: UtxoAddress,
+  pub pool_pair: BRC20ModulePoolPair,
+}
+
+impl BRC20ModuleAddressLPTokenBalanceKey {
+  pub fn new(module_id: &String, address: &UtxoAddress, pool_pair: &BRC20ModulePoolPair) -> Self {
+    Self {
+      module_id: module_id.clone(),
+      address: address.clone(),
+      pool_pair: pool_pair.clone(),
+    }
+  }
+}
+
+pub type BRC20ModuleLPTokenBalanceValue = [u8];
+impl_bincode_dynamic_entry!(BRC20ModuleLPTokenBalance, BRC20ModuleLPTokenBalanceValue);
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BRC20ModuleLPTokenBalance {
+  pub balance: Brc20Decimal,
+  pub locked_balance: Brc20Decimal,
+}
+
+impl BRC20ModuleLPTokenBalance {
+  pub fn new(balance: Brc20Decimal, locked_balance: Brc20Decimal) -> Self {
+    Self {
+      balance,
+      locked_balance,
+    }
+  }
+
+  pub fn new_with_default() -> Self {
+    Self {
+      balance: Brc20Decimal::from_u128(0, 0).unwrap(),
+      locked_balance: Brc20Decimal::from_u128(0, 0).unwrap(),
+    }
+  }
+}
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -161,7 +402,7 @@ mod tests {
     let wtx = database.begin_write().unwrap();
     let mut table = wtx.open_table(TICKER).unwrap();
 
-    let ticker = BRC20Ticker::from_str("value").unwrap();
+    let ticker = BRC20Ticker::from_str("valuefractal").unwrap();
 
     table.insert(1, ticker.clone().store().as_ref()).unwrap();
 
@@ -172,5 +413,24 @@ mod tests {
       .unwrap();
 
     assert_eq!(retrieved_value, ticker);
+  }
+
+  #[test]
+  fn test_module_info() {
+    let module_info = BRC20ModuleInfo {
+      id: "ID".to_string(),
+      name: "swap".to_string(),
+      deployer_pk_script: "bc1qtaf86fqf9hv7r76927fjpxc0mpvedgyp7zjneu".to_string(),
+      sequencer_pk_script: "bc1qtaf86fqf9hv7r76927fjpxc0mpvedgyp7zjneu".to_string(),
+      gas_to_pk_script: "bc1qam880mjcygnkjny5km39vut89vsnq7yun4nr73".to_string(),
+      lp_fee_pk_script: "bc1qaejzncrr87pr7azn9fadwa79cp42acsxeygert".to_string(),
+      fee_rate_swap: Brc20Decimal::from_u128(119813216873524654, 12).unwrap(),
+      gas_tick: "bSATS_".to_string(),
+      chain_commit_id: Some("chain_commit_id".to_string()),
+      commit_id: Some("commit_id".to_string()),
+    };
+
+    let value = module_info.store();
+    assert_eq!(module_info, BRC20ModuleInfo::load(&value));
   }
 }
