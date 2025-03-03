@@ -5,12 +5,18 @@ use super::{
   *,
 };
 
+mod commit;
+mod create_module;
 mod deploy;
 mod inscribe_transfer;
 mod mint;
 mod transfer;
+mod withdraw;
 
+pub type BRC20ExecutionMessageValue = [u8];
+impl_bincode_dynamic_entry!(BRC20ExecutionMessage, BRC20ExecutionMessageValue);
 /// Represents a message used for executing BRC20 operations.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub(crate) struct BRC20ExecutionMessage {
   txid: Txid,
   inscription_id: InscriptionId,
@@ -44,7 +50,9 @@ impl BRC20ExecutionMessage {
 
     match &value.inscription_action {
       InscriptionAction::Created { sub_type, .. } => {
+        log::debug!("debugbrc20 sub_type{:?}", sub_type);
         if let Some(SubType::BRC20(brc20_operation)) = sub_type {
+          log::debug!("debugbrc20 brc20_operation {:?}", brc20_operation);
           build_message(brc20_operation.clone())
         } else {
           Ok(None)
@@ -67,6 +75,7 @@ impl BRC20ExecutionMessage {
 impl BRC20ExecutionMessage {
   pub fn execute(
     self,
+    index: &Index,
     context: &mut TableContext,
     height: u32,
     blocktime: u32,
@@ -75,7 +84,16 @@ impl BRC20ExecutionMessage {
       BRC20Operation::Deploy(..) => self.execute_deploy(context, height, blocktime),
       BRC20Operation::Mint { .. } => self.execute_mint(context, height),
       BRC20Operation::InscribeTransfer(_) => self.execute_inscribe_transfer(context),
-      BRC20Operation::Transfer { .. } => self.execute_transfer(context),
+      BRC20Operation::Transfer { .. } => self.execute_transfer(index, context),
+      BRC20Operation::CreateModule(..) => {
+        self.execute_create_module(&self.inscription_id, index, context)
+      }
+      BRC20Operation::Withdraw(..) => self.execute_inscribe_withdraw(context),
+      BRC20Operation::Commit(..) => self.execute_inscribe_commit(index, context),
+      BRC20Operation::TransferWithdraw(..) => self.execute_transfer_withdraw(index, context),
+      BRC20Operation::TransferCommit(..) => {
+        self.execute_transfer_commit(&self.inscription_id, index, context)
+      }
     };
 
     match result {

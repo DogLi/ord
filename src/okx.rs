@@ -22,6 +22,7 @@ mod composite_key;
 pub(crate) mod context;
 pub(crate) mod entry;
 pub mod uniswap;
+mod utils;
 mod utxo_address;
 
 pub(crate) use self::{
@@ -181,7 +182,8 @@ impl OkxUpdater {
         if let Some(brc20_execution_message) =
           BRC20ExecutionMessage::new_from_bundle_message(bundle_message, context)?
         {
-          if let Ok(receipt) = brc20_execution_message.execute(context, self.height, self.timestamp)
+          if let Ok(receipt) =
+            brc20_execution_message.execute(index, context, self.height, self.timestamp)
           {
             brc20_execution_receipts.push(receipt);
           }

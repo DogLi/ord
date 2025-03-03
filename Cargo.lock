@@ -491,6 +491,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -2659,6 +2660,7 @@ dependencies = [
  "bitcoincore-rpc",
  "boilerplate",
  "brotli",
+ "byteorder",
  "chrono",
  "ciborium",
  "clap",

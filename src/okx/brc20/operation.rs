@@ -1,13 +1,21 @@
 use super::*;
 use serde_json::{json, Value};
 
+pub(crate) mod commit;
+mod create_module;
 mod deploy;
 mod mint;
 mod transfer;
+mod withdraw;
 
-pub use self::{deploy::Deploy, mint::Mint, transfer::Transfer};
+pub use self::{
+  commit::Commit, create_module::CreateModule, deploy::Deploy, mint::Mint, transfer::Transfer,
+  withdraw::Withdraw,
+};
 
 pub const PROTOCOL_LITERAL: &str = "brc-20";
+pub const PROTOCOL_LITERAL_MODULE: &str = "brc20-module";
+pub const PROTOCOL_LITERAL_SWAP: &str = "brc20-swap";
 
 pub trait BRC20OperationExtractor {
   fn extract_brc20_operation(&self) -> Result<RawOperation, Error>;
@@ -22,6 +30,12 @@ pub enum RawOperation {
   Mint(Mint),
   #[serde(rename = "transfer")]
   Transfer(Transfer),
+  #[serde(rename = "create_module")] // unreachable!
+  CreateModule(CreateModule),
+  #[serde(rename = "withdraw")]
+  Withdraw(Withdraw),
+  #[serde(rename = "commit")]
+  Commit(Commit),
 }
 
 impl BRC20OperationExtractor for Inscription {
@@ -52,11 +66,29 @@ impl BRC20OperationExtractor for Inscription {
 
 fn deserialize_brc20_operation(s: &str) -> Result<RawOperation, Error> {
   let value: Value = serde_json::from_str(s).map_err(|_| Error::InvalidJson)?;
-  if value.get("p") != Some(&json!(PROTOCOL_LITERAL)) {
+  if value.get("p") != Some(&json!(PROTOCOL_LITERAL))
+    && value.get("p") != Some(&json!(PROTOCOL_LITERAL_MODULE))
+    && value.get("p") != Some(&json!(PROTOCOL_LITERAL_SWAP))
+  {
     return Err(Error::NotBRC20Json);
   }
 
-  serde_json::from_value(value).map_err(|e| Error::ParseOperationJsonError(e.to_string()))
+  if value.get("p") == Some(&json!(PROTOCOL_LITERAL_MODULE))
+    && value.get("op") == Some(&json!("deploy"))
+  {
+    // 解析 JSON 字符串到 CreateModule 结构体
+    serde_json::from_value::<CreateModule>(value.clone())
+      .map_err(|e| Error::ParseOperationJsonError(e.to_string()))
+      .map(RawOperation::CreateModule)
+  } else if value.get("p") == Some(&json!(PROTOCOL_LITERAL_MODULE))
+    && value.get("op") == Some(&json!("withdraw"))
+  {
+    serde_json::from_value::<Withdraw>(value.clone())
+      .map_err(|e| Error::ParseOperationJsonError(e.to_string()))
+      .map(RawOperation::Withdraw)
+  } else {
+    serde_json::from_value(value).map_err(|e| Error::ParseOperationJsonError(e.to_string()))
+  }
 }
 
 #[derive(PartialEq, Debug)]
@@ -84,6 +116,8 @@ impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
+  use crate::okx::brc20::operation::create_module::Init;
+
   use super::*;
 
   #[test]
@@ -235,5 +269,37 @@ mod tests {
         amount: "200".to_string(),
       })
     );
+  }
+
+  #[test]
+  fn test_brc20_swap() {
+    let json_str = r#"{"p":"brc20-module","op":"deploy","name":"swap","source":"34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0","init":{"swap_fee_rate":"0.003","gas_tick":"bSATS_","gas_to":"bc1qam880mjcygnkjny5km39vut89vsnq7yun4nr73","fee_to":"bc1qaejzncrr87pr7azn9fadwa79cp42acsxeygert","sequencer":"bc1qtaf86fqf9hv7r76927fjpxc0mpvedgyp7zjneu"}}"#;
+    assert_eq!(
+      deserialize_brc20_operation(json_str).unwrap(),
+      RawOperation::CreateModule(CreateModule {
+        name: "swap".to_string(),
+        source: "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".to_string(),
+        init: Init {
+          swap_fee_rate: "0.003".to_string(),
+          gas_tick: "bSATS_".to_string(),
+          gas_to: "bc1qam880mjcygnkjny5km39vut89vsnq7yun4nr73".to_string(),
+          fee_to: "bc1qaejzncrr87pr7azn9fadwa79cp42acsxeygert".to_string(),
+          sequencer: "bc1qtaf86fqf9hv7r76927fjpxc0mpvedgyp7zjneu".to_string(),
+        },
+      })
+    );
+  }
+
+  #[test]
+  fn test_brc20_swap_withdraw() {
+    let json_str =
+      r#"{"p":"brc20-module","op":"withdraw","tick":"ordi","module":"module","amt":"10"}"#;
+    println!("{:?}", deserialize_brc20_operation(json_str).unwrap());
+  }
+
+  #[test]
+  fn test_brc20_swap_commit() {
+    let json_str = r#"{"p":"brc20-swap","op":"commit","module":"module","parent":"xxxxi0","gas_price":"100","data":[{"func":"send","params":["bc1qaejzncrr87pr7azn9fadwa79cp42acsxeygert","ordi","10"],"addr":"bc1q...", "ts":12345,"sig":"sig"}]}"#;
+    println!("{:?}", deserialize_brc20_operation(json_str).unwrap());
   }
 }

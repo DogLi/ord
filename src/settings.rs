@@ -43,6 +43,9 @@ pub struct Settings {
   unisat_api_key: String,
   fractal_address_black_list: Vec<String>,
   disable_invalid_brc20_tracking: bool,
+
+  index_brc20_swap: bool,
+  module_swap_source_inscription_id: Option<String>,
 }
 
 impl Settings {
@@ -173,6 +176,11 @@ impl Settings {
       },
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking
         || source.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: self.index_brc20_swap || source.index_brc20_swap,
+      module_swap_source_inscription_id: self
+        .module_swap_source_inscription_id
+        .or(source.module_swap_source_inscription_id),
     }
   }
 
@@ -220,6 +228,9 @@ impl Settings {
       unisat_api_key: options.unisat_api_key,
       fractal_address_black_list: options.fractal_address_black_list,
       disable_invalid_brc20_tracking: options.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: options.index_brc20_swap,
+      module_swap_source_inscription_id: options.module_swap_source_inscription_id,
     }
   }
 
@@ -323,6 +334,8 @@ impl Settings {
       // TODO: get from env
       fractal_address_black_list: vec![],
       disable_invalid_brc20_tracking: get_bool("DISABLE_INVALID_BRC20_TRACKING"),
+      index_brc20_swap: get_bool("INDEX_BRC20_SWAP"),
+      module_swap_source_inscription_id: get_string("MODULE_SWAP_SOURCE_INSCRIPTION_ID"),
     })
   }
 
@@ -365,6 +378,9 @@ impl Settings {
       unisat_api_key: "".to_string(),
       fractal_address_black_list: vec![],
       disable_invalid_brc20_tracking: false,
+
+      index_brc20_swap: false,
+      module_swap_source_inscription_id: None,
     }
   }
 
@@ -451,6 +467,9 @@ impl Settings {
       unisat_api_key: self.unisat_api_key,
       fractal_address_black_list: self.fractal_address_black_list,
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: self.index_brc20_swap,
+      module_swap_source_inscription_id: self.module_swap_source_inscription_id,
     })
   }
 
@@ -508,6 +527,10 @@ impl Settings {
       )
     })?;
 
+    #[derive(serde::Deserialize)]
+    struct ChainEnv {
+      chain: String,
+    }
     let mut checks = 0;
     let rpc_chain = loop {
       match get_blockchain_info(&client) {
@@ -522,7 +545,7 @@ impl Settings {
         }
         Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::Error::Rpc(err)))
           if err.code == -28 => {}
-        Err(err) => bail!("Failed to connect to Bitcoin Core RPC at `{rpc_url}`:  {err}"),
+        Err(err) => bail!("Failed to connect to Fractal Bitcoin Core RPC at `{rpc_url}`:  {err}"),
       }
 
       ensure! {
@@ -533,6 +556,7 @@ impl Settings {
       checks += 1;
       thread::sleep(Duration::from_millis(100));
     };
+    log::debug!("Connected to Bitcoin Core RPC at `{rpc_url}` on chain `{rpc_chain}`");
 
     let ord_chain = self.chain();
 
@@ -684,6 +708,10 @@ impl Settings {
     self.index_brc20
   }
 
+  pub(crate) fn index_brc20_swap(&self) -> bool {
+    self.index_brc20_swap
+  }
+
   pub(crate) fn disable_invalid_brc20_tracking(&self) -> bool {
     self.disable_invalid_brc20_tracking
   }
@@ -702,6 +730,13 @@ impl Settings {
 
   pub fn address_black_list(&self) -> Vec<String> {
     self.fractal_address_black_list.clone()
+  }
+
+  pub(crate) fn brc20_swap_source(&self) -> String {
+    match &self.module_swap_source_inscription_id {
+      Some(brc20_swap_source) => brc20_swap_source.to_string(),
+      None => String::new(),
+    }
   }
 }
 
@@ -1189,6 +1224,8 @@ mod tests {
       ("INDEX_BTC_DOMAIN", "1"),
       ("INDEX_BRC20", "1"),
       ("DISABLE_INVALID_BRC20_TRACKING", "1"),
+      ("INDEX_BRC20_SWAP", "1"),
+      ("MODULE_SWAP_SOURCE_INSCRIPTION_ID", "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0"),
     ]
     .into_iter()
     .map(|(key, value)| (key.into(), value.into()))
@@ -1244,6 +1281,11 @@ mod tests {
         unisat_api_key: "".to_string(),
         fractal_address_black_list: vec![],
         disable_invalid_brc20_tracking: true,
+
+        index_brc20_swap: true,
+        module_swap_source_inscription_id: Some(
+          "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".into()
+        ),
       }
     );
   }
@@ -1283,6 +1325,8 @@ mod tests {
           "--index-btc-domain",
           "--index-brc20",
           "--disable-invalid-brc20-tracking",
+          "--index-brc20-swap",
+          "--module_swap_source_inscription_id=34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0",
         ])
         .unwrap()
       ),
@@ -1323,6 +1367,9 @@ mod tests {
         unisat_api_key: "".to_string(),
         fractal_address_black_list: vec![],
         disable_invalid_brc20_tracking: true,
+
+        index_brc20_swap: true,
+        module_swap_source_inscription_id: Some("34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".into()),
       }
     );
   }
