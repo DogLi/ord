@@ -175,6 +175,7 @@ impl OkxUpdater {
     let mut bitmap_message_count = 0;
     let mut btc_domain_message_count = 0;
 
+    let now = Instant::now();
     for bundle_message in bundle_messages.iter() {
       // process brc20 operation
       if index.has_brc20_index() {
@@ -188,6 +189,7 @@ impl OkxUpdater {
           continue;
         }
       }
+      log::info!("finished process bundle message, message len: {}, used: {:?}", bundle_messages.len(), now.elapsed());
 
       // process uniswap withdraw history
       for withdraw_history in withdraw_history_list.iter() {

@@ -4,8 +4,9 @@ use super::*;
 pub struct BRC20Ticker(Box<[u8]>);
 
 impl BRC20Ticker {
-  pub const MIN_SIZE: usize = 4;
-  pub const MAX_SIZE: usize = 5;
+  // 
+  pub const MIN_SIZE: usize = 6;
+  pub const MAX_SIZE: usize = 12;
 
   pub fn len(&self) -> usize {
     self.0.len()
