@@ -22,7 +22,7 @@ COPY --from=builder \
     /usr/src/ord/target/x86_64-unknown-linux-musl/release/ord \
     /usr/local/bin
 
-RUN apt-get update && apt-get install -y openssl
+RUN apt-get update && apt-get install -y openssl ca-certificates
 
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=info
