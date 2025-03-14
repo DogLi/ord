@@ -5,7 +5,13 @@ impl BRC20ExecutionMessage {
     &self,
     context: &mut TableContext,
   ) -> Result<BRC20Receipt, ExecutionError> {
+    log::debug!("brc20swap execute_inscribe_transfer: {:?}", self);
     let BRC20Operation::InscribeTransfer(transfer) = &self.operation else {
+      log::debug!(
+        "brc20swap execute_inscribe_transfer unreachable: {:?}, inscription_id: {:?}",
+        self.txid,
+        self.inscription_id
+      );
       unreachable!()
     };
 
@@ -23,6 +29,11 @@ impl BRC20ExecutionMessage {
     if amt.is_zero()
       || amt > FixedPoint::new_unchecked(ticker_info.total_supply, ticker_info.decimals)
     {
+      log::debug!(
+        "brc20swap execute_inscribe_transfer amount invalid: {:?}, amount: {:?}",
+        self.txid,
+        amt
+      );
       return Err(ExecutionError::ExecutionFailed(BRC20Error::InvalidAmount(
         amt,
       )));
@@ -61,6 +72,7 @@ impl BRC20ExecutionMessage {
       transferring_asset,
     )?;
 
+    log::debug!("brc20swap execute_inscribe_transfer finished: {:?}", self);
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,

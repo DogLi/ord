@@ -6,6 +6,7 @@ use crate::okx::{
 };
 
 mod brc20;
+mod brc20_swap;
 mod inscription;
 
 impl Index {

@@ -3,18 +3,21 @@ use crate::index::Curse;
 use crate::Chain;
 pub use fixed_point::FixedPoint;
 use once_cell::sync::Lazy;
-use operation::{BRC20OperationExtractor, Deploy, Mint, RawOperation, Transfer};
+use operation::{
+  BRC20OperationExtractor, Commit, CreateModule, Deploy, Mint, RawOperation, Transfer, Withdraw,
+};
 use policies::HardForks;
 
+pub(crate) mod brc20_decimal;
 pub(crate) mod entry;
 mod error;
 pub(crate) mod event;
 mod executor;
 mod fixed_point;
-mod operation;
+pub(crate) mod operation;
 mod policies;
 mod ticker;
-
+mod verify;
 pub static MAXIMUM_SUPPLY: Lazy<FixedPoint> =
   Lazy::new(|| FixedPoint::new_unchecked(u128::from(u64::MAX), 0));
 
@@ -24,8 +27,8 @@ pub(crate) use self::{
   executor::BRC20ExecutionMessage,
   ticker::{BRC20LowerCaseTicker, BRC20Ticker},
 };
-const SELF_ISSUANCE_TICKER_LENGTH: usize = 5;
-#[derive(Debug, Clone)]
+// const SELF_ISSUANCE_TICKER_LENGTH: usize = 5;
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum BRC20Operation {
   Deploy(Deploy),
   Mint {
@@ -37,6 +40,13 @@ pub enum BRC20Operation {
     ticker: BRC20Ticker,
     amount: u128,
   },
+
+  // Swap
+  CreateModule(CreateModule),
+  Withdraw(Withdraw),
+  Commit(Commit),
+  TransferWithdraw(Withdraw),
+  TransferCommit(Commit),
 }
 
 pub trait BRC20CreationOperationExtractor {
@@ -108,30 +118,31 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
       self.pre_jubilant_curse_reason,
     ) {
       match self.inscription.extract_brc20_operation() {
-        Ok(RawOperation::Deploy(mut deploy)) => {
+        Ok(RawOperation::Deploy(deploy)) => {
           // Filter out invalid deployments with a 5-byte ticker.
           // proposal for issuance self mint token.
           // https://l1f.discourse.group/t/brc-20-proposal-for-issuance-and-burn-enhancements-brc20-ip-1/621
-          if deploy.tick.len() == SELF_ISSUANCE_TICKER_LENGTH {
-            if !deploy.self_mint.unwrap_or_default() {
-              log::debug!(
-                "Self mint is not enabled for inscription: {} with ticker length: {}",
-                self.inscription_id,
-                SELF_ISSUANCE_TICKER_LENGTH
-              );
-              return None;
-            }
-            if height < HardForks::self_issuance_activation_height(&chain) {
-              log::debug!(
-                "Self mint is not activated at height: {} for inscription: {}",
-                height,
-                self.inscription_id
-              );
-              return None;
-            }
-          } else {
-            deploy.self_mint = None;
-          }
+          // The self-issuance ticker on Fractal is no different from a regular brc20 ticker.
+          // if deploy.tick.len() == SELF_ISSUANCE_TICKER_LENGTH {
+          //   if !deploy.self_mint.unwrap_or_default() {
+          //     log::debug!(
+          //       "Self mint is not enabled for inscription: {} with ticker length: {}",
+          //       self.inscription_id,
+          //       SELF_ISSUANCE_TICKER_LENGTH
+          //     );
+          //     return None;
+          //   }
+          //   if height < HardForks::self_issuance_activation_height(&chain) {
+          //     log::debug!(
+          //       "Self mint is not activated at height: {} for inscription: {}",
+          //       height,
+          //       self.inscription_id
+          //     );
+          //     return None;
+          //   }
+          // } else {
+          //   deploy.self_mint = None;
+          // }
           Some(BRC20Operation::Deploy(deploy))
         }
         Ok(RawOperation::Mint(mint)) => Some(BRC20Operation::Mint {
@@ -139,6 +150,11 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
           parent: self.parents.first().cloned(),
         }),
         Ok(RawOperation::Transfer(transfer)) => Some(BRC20Operation::InscribeTransfer(transfer)),
+        Ok(RawOperation::CreateModule(create_module)) => {
+          Some(BRC20Operation::CreateModule(create_module))
+        }
+        Ok(RawOperation::Withdraw(withdraw)) => Some(BRC20Operation::Withdraw(withdraw)),
+        Ok(RawOperation::Commit(commit)) => Some(BRC20Operation::Commit(commit)),
         _ => None,
       }
     } else {
@@ -173,23 +189,29 @@ impl BRC20TransferOperationExtractor<'_, '_> for TransferredInscription {
     context: &mut TableContext,
   ) -> Result<Option<BRC20Operation>> {
     if self.inscription_number >= 0 && self.old_satpoint.outpoint.txid == self.inscription_id.txid {
-      let Some(asset) = context.load_brc20_transferring_asset(self.old_satpoint)? else {
-        return Ok(None);
-      };
+      if let Some(asset) = context.load_brc20_transferring_asset(self.old_satpoint)? {
+        // Since a single old_satpoint may correspond to multiple inscriptions,
+        // we need to verify whether the current inscription_id matches the asset's inscription_id.
+        // Only if they match can it be considered a valid BRC20 transfer message.
+        if self.inscription_id != asset.inscription_id {
+          return Ok(None);
+        }
 
-      // Since a single old_satpoint may correspond to multiple inscriptions,
-      // we need to verify whether the current inscription_id matches the asset's inscription_id.
-      // Only if they match can it be considered a valid BRC20 transfer message.
-      if self.inscription_id != asset.inscription_id {
-        return Ok(None);
+        // Remove the asset from tables.
+        context.remove_brc20_transferring_asset(self.old_satpoint)?;
+        return Ok(Some(BRC20Operation::Transfer {
+          ticker: asset.ticker,
+          amount: asset.amount,
+        }));
+      } else if let Some(commit) =
+        context.load_commit_info(self.inscription_id.to_string().as_str())?
+      {
+        return Ok(Some(BRC20Operation::TransferCommit(commit)));
+      } else if let Some(withdraw) =
+        context.load_brc20_module_inscribe_withdraw(self.old_satpoint)?
+      {
+        return Ok(Some(BRC20Operation::TransferWithdraw(withdraw)));
       }
-
-      // Remove the asset from tables.
-      context.remove_brc20_transferring_asset(self.old_satpoint)?;
-      return Ok(Some(BRC20Operation::Transfer {
-        ticker: asset.ticker,
-        amount: asset.amount,
-      }));
     }
     Ok(None)
   }

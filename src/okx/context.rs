@@ -1,9 +1,16 @@
 use super::{
   brc20::{
     entry::{
-      BRC20Balance, BRC20BalanceValue, BRC20Receipt, BRC20ReceiptsValue, BRC20TickerInfo,
-      BRC20TickerInfoValue, BRC20TransferAsset, BRC20TransferAssetValue,
+      BRC20Balance, BRC20BalanceValue, BRC20ModuleAddressLPTokenBalanceKey,
+      BRC20ModuleAddressLPTokenBalanceKeyValue, BRC20ModuleAddressTokenBalanceKey,
+      BRC20ModuleAddressTokenBalanceKeyValue, BRC20ModuleInfo, BRC20ModuleInfoValue,
+      BRC20ModuleLPTokenBalance, BRC20ModuleLPTokenBalanceValue, BRC20ModulePoolPair,
+      BRC20ModuleSwapPoolPairBalance, BRC20ModuleSwapPoolPairBalanceKey,
+      BRC20ModuleSwapPoolPairBalanceKeyValue, BRC20ModuleSwapPoolPairBalanceValue,
+      BRC20ModuleTokenBalance, BRC20ModuleTokenBalanceValue, BRC20Receipt, BRC20ReceiptsValue,
+      BRC20TickerInfo, BRC20TickerInfoValue, BRC20TransferAsset, BRC20TransferAssetValue,
     },
+    operation::{commit::CommitValue, withdraw::WithdrawValue, Commit, Withdraw},
     BRC20Ticker,
   },
   composite_key::AddressTickerKey,
@@ -30,6 +37,25 @@ pub(crate) struct TableContext<'a, 'txn> {
   sequence_number_to_collection_type: &'a mut Table<'txn, u32, u16>,
   bitmap_block_height_to_sequence_number: &'a mut Table<'txn, u32, u32>,
   btc_domain_to_sequence_number: &'a mut Table<'txn, &'static str, u32>,
+  brc20_module_info: &'a mut Table<'txn, &'static str, &'static BRC20ModuleInfoValue>,
+  brc20_module_address_ticker_balances: &'a mut Table<
+    'txn,
+    &'static BRC20ModuleAddressTokenBalanceKeyValue,
+    &'static BRC20ModuleTokenBalanceValue,
+  >,
+  brc20_module_swap_poolpair_balances: &'a mut Table<
+    'txn,
+    &'static BRC20ModuleSwapPoolPairBalanceKeyValue,
+    &'static BRC20ModuleSwapPoolPairBalanceValue,
+  >,
+  brc20_swap_commit_info: &'a mut Table<'txn, &'static str, &'static CommitValue>,
+  brc20_module_inscribe_withdraws:
+    &'a mut Table<'txn, &'static SatPointValue, &'static WithdrawValue>,
+  brc20_module_address_lp_token_balance: &'a mut Table<
+    'txn,
+    &'static BRC20ModuleAddressLPTokenBalanceKeyValue,
+    &'static BRC20ModuleLPTokenBalanceValue,
+  >,
 }
 
 impl<'a, 'txn> TableContext<'a, 'txn> {
@@ -59,6 +85,28 @@ impl<'a, 'txn> TableContext<'a, 'txn> {
     sequence_number_to_collection_type: &'a mut Table<'txn, u32, u16>,
     bitmap_block_height_to_sequence_number: &'a mut Table<'txn, u32, u32>,
     btc_domain_to_sequence_number: &'a mut Table<'txn, &'static str, u32>,
+    brc20_module_info: &'a mut Table<'txn, &'static str, &'static BRC20ModuleInfoValue>,
+    brc20_module_address_ticker_balances: &'a mut Table<
+      'txn,
+      &'static BRC20ModuleAddressTokenBalanceKeyValue,
+      &'static BRC20ModuleTokenBalanceValue,
+    >,
+    brc20_module_swap_poolpair_balances: &'a mut Table<
+      'txn,
+      &'static BRC20ModuleSwapPoolPairBalanceKeyValue,
+      &'static BRC20ModuleSwapPoolPairBalanceValue,
+    >,
+    brc20_swap_commit_info: &'a mut Table<'txn, &'static str, &'static CommitValue>,
+    brc20_module_inscribe_withdraws: &'a mut Table<
+      'txn,
+      &'static SatPointValue,
+      &'static WithdrawValue,
+    >,
+    brc20_module_address_lp_token_balance: &'a mut Table<
+      'txn,
+      &'static BRC20ModuleAddressLPTokenBalanceKeyValue,
+      &'static BRC20ModuleLPTokenBalanceValue,
+    >,
   ) -> Self {
     Self {
       inscription_receipts,
@@ -70,6 +118,12 @@ impl<'a, 'txn> TableContext<'a, 'txn> {
       sequence_number_to_collection_type,
       bitmap_block_height_to_sequence_number,
       btc_domain_to_sequence_number,
+      brc20_module_info,
+      brc20_module_address_ticker_balances,
+      brc20_module_swap_poolpair_balances,
+      brc20_swap_commit_info,
+      brc20_module_inscribe_withdraws,
+      brc20_module_address_lp_token_balance,
     }
   }
 
@@ -267,6 +321,199 @@ impl<'a, 'txn> TableContext<'a, 'txn> {
     self
       .sequence_number_to_collection_type
       .insert(sequence_number, u16::from(collection_type))?;
+    Ok(())
+  }
+
+  pub fn is_module_already_deployed(
+    &mut self,
+    module_id: &str,
+  ) -> Result<bool, redb::StorageError> {
+    Ok(self.brc20_module_info.get(module_id)?.is_some())
+  }
+
+  pub fn insert_brc20_module_info(
+    &mut self,
+    module_id: &str,
+    module_info: BRC20ModuleInfo,
+  ) -> Result<(), redb::StorageError> {
+    self
+      .brc20_module_info
+      .insert(module_id, module_info.store().as_ref())?;
+    Ok(())
+  }
+
+  pub fn load_brc20_module_info(
+    &mut self,
+    module_id: &str,
+  ) -> Result<Option<BRC20ModuleInfo>, redb::StorageError> {
+    Ok(
+      self
+        .brc20_module_info
+        .get(module_id)?
+        .map(|v| DynamicEntry::load(v.value())),
+    )
+  }
+
+  pub fn load_brc20_module_address_token_balance(
+    &mut self,
+    address: &UtxoAddress,
+    module_id: &String,
+    ticker: &BRC20Ticker,
+  ) -> Result<Option<BRC20ModuleTokenBalance>, redb::StorageError> {
+    Ok(
+      self
+        .brc20_module_address_ticker_balances
+        .get(
+          BRC20ModuleAddressTokenBalanceKey {
+            address: address.clone(),
+            module_id: module_id.to_string(),
+            ticker: ticker.to_lowercase().clone(),
+          }
+          .store()
+          .as_ref(),
+        )?
+        .map(|v| DynamicEntry::load(v.value())),
+    )
+  }
+
+  pub fn update_brc20_module_address_token_balance(
+    &mut self,
+    address: &UtxoAddress,
+    module_id: &String,
+    ticker: &BRC20Ticker,
+    balance: BRC20ModuleTokenBalance,
+  ) -> Result<(), redb::StorageError> {
+    self.brc20_module_address_ticker_balances.insert(
+      BRC20ModuleAddressTokenBalanceKey {
+        address: address.clone(),
+        module_id: module_id.to_string(),
+        ticker: ticker.to_lowercase().clone(),
+      }
+      .store()
+      .as_ref(),
+      balance.store().as_ref(),
+    )?;
+    Ok(())
+  }
+
+  pub fn load_brc20_module_swap_poolpair_balance(
+    &mut self,
+    module_id: &str,
+    pool_pair: &BRC20ModulePoolPair,
+  ) -> Result<Option<BRC20ModuleSwapPoolPairBalance>, redb::StorageError> {
+    Ok(
+      self
+        .brc20_module_swap_poolpair_balances
+        .get(
+          BRC20ModuleSwapPoolPairBalanceKey {
+            module_id: module_id.to_string(),
+            pool_pair: pool_pair.clone(),
+          }
+          .store()
+          .as_ref(),
+        )?
+        .map(|v| DynamicEntry::load(v.value())),
+    )
+  }
+
+  pub fn update_brc20_module_swap_poolpair_balance(
+    &mut self,
+    module_id: &str,
+    pool_pair: &BRC20ModulePoolPair,
+    balance: BRC20ModuleSwapPoolPairBalance,
+  ) -> Result<(), redb::StorageError> {
+    self.brc20_module_swap_poolpair_balances.insert(
+      BRC20ModuleSwapPoolPairBalanceKey {
+        module_id: module_id.to_string(),
+        pool_pair: pool_pair.clone(),
+      }
+      .store()
+      .as_ref(),
+      balance.store().as_ref(),
+    )?;
+    Ok(())
+  }
+
+  pub fn load_commit_info(
+    &mut self,
+    inscription_id: &str,
+  ) -> Result<Option<Commit>, redb::StorageError> {
+    Ok(
+      self
+        .brc20_swap_commit_info
+        .get(inscription_id)?
+        .map(|v| DynamicEntry::load(v.value())),
+    )
+  }
+  pub fn insert_brc20_module_inscribe_withdraw(
+    &mut self,
+    satpoint: SatPoint,
+    withdraw: Withdraw,
+  ) -> Result<(), redb::StorageError> {
+    self
+      .brc20_module_inscribe_withdraws
+      .insert(&satpoint.store(), withdraw.store().as_ref())?;
+    Ok(())
+  }
+
+  pub fn load_brc20_module_inscribe_withdraw(
+    &mut self,
+    satpoint: SatPoint,
+  ) -> Result<Option<Withdraw>, redb::StorageError> {
+    Ok(
+      self
+        .brc20_module_inscribe_withdraws
+        .get(&satpoint.store())?
+        .map(|v| DynamicEntry::load(v.value())),
+    )
+  }
+
+  pub fn update_commit_info(
+    &mut self,
+    inscription_id: &str,
+    commit: Commit,
+  ) -> Result<(), redb::StorageError> {
+    self
+      .brc20_swap_commit_info
+      .insert(inscription_id, commit.store().as_ref())?;
+    Ok(())
+  }
+
+  pub fn delete_commit_info(&mut self, inscription_id: &str) -> Result<(), redb::StorageError> {
+    self.brc20_swap_commit_info.remove(inscription_id)?;
+    Ok(())
+  }
+
+  pub fn remove_brc20_module_inscribe_withdraw(
+    &mut self,
+    satpoint: SatPoint,
+  ) -> Result<(), redb::StorageError> {
+    self
+      .brc20_module_inscribe_withdraws
+      .remove(&satpoint.store())?;
+    Ok(())
+  }
+
+  pub fn load_brc20_module_address_lp_token_balance(
+    &mut self,
+    lp_key: &BRC20ModuleAddressLPTokenBalanceKey,
+  ) -> Result<Option<BRC20ModuleLPTokenBalance>, redb::StorageError> {
+    Ok(
+      self
+        .brc20_module_address_lp_token_balance
+        .get(lp_key.store().as_ref())?
+        .map(|v| DynamicEntry::load(v.value())),
+    )
+  }
+
+  pub fn update_brc20_module_address_lp_token_balance(
+    &mut self,
+    lp_key: &BRC20ModuleAddressLPTokenBalanceKey,
+    balance: BRC20ModuleLPTokenBalance,
+  ) -> Result<(), redb::StorageError> {
+    self
+      .brc20_module_address_lp_token_balance
+      .insert(lp_key.store().as_ref(), balance.store().as_ref())?;
     Ok(())
   }
 }

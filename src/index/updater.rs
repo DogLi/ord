@@ -51,6 +51,11 @@ impl Updater<'_> {
     let start = Instant::now();
     let starting_height = u32::try_from(self.index.client.get_block_count()?).unwrap() + 1;
     let starting_index_height = self.height;
+    log::debug!(
+      "updater.update_index starting_height: {:?} starting_index_height: {:?}",
+      starting_height,
+      starting_index_height
+    );
 
     wtx
       .open_table(WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP)?
@@ -77,9 +82,21 @@ impl Updater<'_> {
       Some(progress_bar)
     };
 
-    let rx = Self::fetch_blocks_from(self.index, self.height)?;
+    let rx = match Self::fetch_blocks_from(self.index, self.height) {
+      Ok(rx) => rx,
+      Err(err) => {
+        log::error!("updater.fetch_blocks_from error: {}", err.to_string());
+        return Err(err);
+      }
+    };
 
-    let (mut output_sender, mut txout_receiver) = Self::spawn_fetcher(self.index)?;
+    let (mut output_sender, mut txout_receiver) = match Self::spawn_fetcher(self.index) {
+      Ok(result) => result,
+      Err(err) => {
+        log::error!("updater.spawn_fetcher error: {}", err.to_string());
+        return Err(err);
+      }
+    };
 
     let mut uncommitted = 0;
     let mut utxo_cache = HashMap::new();
@@ -89,13 +106,19 @@ impl Updater<'_> {
         block.header.block_hash(),
         self.height,
       );
-      self.index_block(
+      match self.index_block(
         &mut output_sender,
         &mut txout_receiver,
         &mut wtx,
         block,
         &mut utxo_cache,
-      )?;
+      ) {
+        Ok(()) => (),
+        Err(err) => {
+          log::error!("updater.index_block error: {}", err.to_string());
+          return Err(err);
+        }
+      }
 
       if let Some(progress_bar) = &mut progress_bar {
         progress_bar.inc(1);
@@ -126,6 +149,11 @@ impl Updater<'_> {
         if height != self.height {
           // another update has run between committing and beginning the new
           // write transaction
+          log::debug!(
+            "updater.update_index another update has run between committing and beginning the new write transaction, height: {}, self.height: {}",
+            height,
+            self.height
+          );
           break;
         }
         wtx
@@ -139,6 +167,7 @@ impl Updater<'_> {
       }
 
       if SHUTTING_DOWN.load(atomic::Ordering::Relaxed) {
+        log::info!("updater.update_index shutting down");
         break;
       }
     }
@@ -171,7 +200,16 @@ impl Updater<'_> {
 
     let height_limit = index.height_limit;
 
-    let client = index.settings.bitcoin_rpc_client(None)?;
+    let client = match index.settings.bitcoin_rpc_client(None) {
+      Ok(client) => client,
+      Err(err) => {
+        log::error!(
+          "updater.fetch_blocks_from get client error: {}",
+          err.to_string()
+        );
+        return Err(err);
+      }
+    };
 
     thread::spawn(move || loop {
       if let Some(height_limit) = height_limit {
@@ -181,13 +219,14 @@ impl Updater<'_> {
       }
 
       match Self::get_block_with_retries(&client, height, first_index_height) {
-        Ok(block) => {
+        Ok(Some(block)) => {
           if let Err(err) = tx.send(block.into()) {
             log::info!("Block receiver disconnected: {err}");
             break;
           }
           height += 1;
         }
+        Ok(None) => break,
         Err(err) => {
           log::error!("failed to fetch block {height}: {err}");
           break;
@@ -197,15 +236,13 @@ impl Updater<'_> {
 
     Ok(rx)
   }
-
   fn get_block_with_retries(
     client: &Client,
     height: u32,
     first_index_height: u32,
-  ) -> Result<BlockData> {
+  ) -> Result<Option<Block>> {
     let mut errors = 0;
-    // get the block form btc node
-    let block = loop {
+    loop {
       match client
         .get_block_hash(height.into())
         .into_option()
@@ -224,6 +261,10 @@ impl Updater<'_> {
             .transpose()
         }) {
         Err(err) => {
+          log::warn!(
+            "updater.get_block_with_retries get_block_hash error: {}",
+            err.to_string()
+          );
           if cfg!(test) {
             return Err(err);
           }
@@ -239,22 +280,9 @@ impl Updater<'_> {
 
           thread::sleep(Duration::from_secs(seconds));
         }
-        Ok(Some(result)) => break result,
-        Ok(None) => {
-          let seconds = 1 << errors;
-          log::warn!("failed to fetch block {height}, retrying in {seconds}s");
-
-          if seconds > 120 {
-            log::error!("would sleep for more than 120s, giving up");
-            bail!("get block failed");
-          }
-          thread::sleep(Duration::from_secs(seconds));
-        }
+        Ok(result) => return Ok(result),
       }
-    };
-
-    let block_data = BlockData::from(block);
-    Ok(block_data)
+    }
   }
 
   fn spawn_fetcher(index: &Index) -> Result<(mpsc::Sender<OutPoint>, broadcast::Receiver<TxOut>)> {
@@ -477,6 +505,16 @@ impl Updater<'_> {
 
     let index_inscriptions = self.height >= self.index.settings.first_inscription_height()
       && self.index.index_inscriptions;
+
+    let mut brc20_module_info = wtx.open_table(BRC20_MODULE_INFO)?;
+    let mut brc20_module_address_ticker_balances =
+      wtx.open_table(BRC20_MODULE_ADDRESS_TICKER_BALANCE)?;
+    let mut brc20_module_swap_poolpair_balances =
+      wtx.open_table(BRC20_MODULE_SWAP_POOL_BALANCES)?;
+    let mut brc20_swap_commit_info = wtx.open_table(BRC20_SWAP_COMMIT_INFO)?;
+    let mut brc20_module_inscribe_withdraws = wtx.open_table(BRC20_MODULE_INSCRIBE_WITHDRAW)?;
+    let mut brc20_module_lp_token_balance =
+      wtx.open_table(BRC20_MODULE_ADDRESS_LP_TOKEN_BALANCE)?;
 
     // If the receiver still has inputs something went wrong in the last
     // block and we shouldn't recover from this and commit the last block
@@ -780,6 +818,12 @@ impl Updater<'_> {
         &mut sequence_number_to_collection_type,
         &mut bitmap_block_height_to_sequence_number,
         &mut btc_domain_to_sequence_number,
+        &mut brc20_module_info,
+        &mut brc20_module_address_ticker_balances,
+        &mut brc20_module_swap_poolpair_balances,
+        &mut brc20_swap_commit_info,
+        &mut brc20_module_inscribe_withdraws,
+        &mut brc20_module_lp_token_balance,
       );
 
       let mut okx_updater = OkxUpdater {
@@ -946,8 +990,15 @@ impl Updater<'_> {
     // Commit twice since due to a bug redb will only reuse pages freed in the
     // transaction before last.
     self.index.begin_write()?.commit()?;
+    log::info!("Commit successfully at height: {}", self.height);
 
-    Reorg::update_savepoints(self.index, self.height)?;
+    match Reorg::update_savepoints(self.index, self.height) {
+      Ok(()) => (),
+      Err(err) => {
+        log::error!("updater.update_savepoints error: {}", err.to_string());
+        return Err(err);
+      }
+    }
 
     Ok(())
   }

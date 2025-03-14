@@ -82,6 +82,10 @@ impl Chain {
     Address::from_script(script, self.network()).snafu_context(error::AddressConversion)
   }
 
+  pub(crate) fn to_script_pubkey(self, address: &Address) -> ScriptBuf {
+    address.script_pubkey()
+  }
+
   pub(crate) fn join_with_data_dir(self, data_dir: impl AsRef<Path>) -> PathBuf {
     match self {
       Self::Mainnet => data_dir.as_ref().to_owned(),

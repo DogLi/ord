@@ -8,7 +8,9 @@ impl BRC20ExecutionMessage {
     height: u32,
     blocktime: u32,
   ) -> Result<BRC20Receipt, ExecutionError> {
+    log::debug!("brc20swap execute_deploy: {:?}", self);
     let BRC20Operation::Deploy(deploy) = &self.operation else {
+      log::debug!("brc20swap execute_deploy unreachable: {:?}", self);
       unreachable!()
     };
 
@@ -18,6 +20,7 @@ impl BRC20ExecutionMessage {
 
     // check if the ticker is not already deployed.
     if context.load_brc20_ticker_info(&ticker)?.is_some() {
+      log::debug!("brc20swap execute_deploy duplicate deployment: {:?}", self);
       return Err(ExecutionError::ExecutionFailed(
         BRC20Error::DuplicateDeployment(ticker.to_string()),
       ));
@@ -28,6 +31,11 @@ impl BRC20ExecutionMessage {
       let uncheck = FixedPoint::new_from_str(dec, 0).map_err(BRC20Error::NumericError)?;
       let (value, scale) = uncheck.to_u128_and_scale();
       if scale != 0 || value > u128::from(FixedPoint::MAX_SCALE) {
+        log::debug!(
+          "brc20swap execute_deploy decimals exceed limit: {:?}, decimals: {:?}",
+          self.txid,
+          dec
+        );
         return Err(ExecutionError::ExecutionFailed(
           BRC20Error::DecimalsExceedLimit(uncheck),
         ));
@@ -42,6 +50,11 @@ impl BRC20ExecutionMessage {
     let mut max =
       FixedPoint::new_from_str(&deploy.max_supply, decimals).map_err(BRC20Error::NumericError)?;
     if max > *MAXIMUM_SUPPLY {
+      log::debug!(
+        "brc20swap execute_deploy max supply exceed limit: {:?}, max: {:?}",
+        self.txid,
+        max
+      );
       return Err(ExecutionError::ExecutionFailed(BRC20Error::InvalidSupply(
         max,
       )));
@@ -55,6 +68,11 @@ impl BRC20ExecutionMessage {
           decimals,
         );
       } else {
+        log::debug!(
+          "brc20swap execute_deploy max supply is zero: {:?}, max: {:?}",
+          self.txid,
+          max
+        );
         return Err(ExecutionError::ExecutionFailed(BRC20Error::InvalidSupply(
           max,
         )));
@@ -65,6 +83,11 @@ impl BRC20ExecutionMessage {
     let limit = if let Some(lim) = &deploy.mint_limit {
       let limit = FixedPoint::new_from_str(lim, decimals).map_err(BRC20Error::NumericError)?;
       if limit.is_zero() || limit > *MAXIMUM_SUPPLY {
+        log::debug!(
+          "brc20swap execute_deploy mint limit exceed limit: {:?}, limit: {:?}",
+          self.txid,
+          limit
+        );
         return Err(ExecutionError::ExecutionFailed(
           BRC20Error::InvalidMaxMintLimit(limit),
         ));
@@ -97,6 +120,7 @@ impl BRC20ExecutionMessage {
     // insert the ticker info to the table.
     context.update_brc20_ticker_info(&ticker, ticker_info)?;
 
+    log::debug!("brc20swap execute_deploy finished: {:?}", self);
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,
