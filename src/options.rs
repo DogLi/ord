@@ -106,24 +106,27 @@ pub struct Options {
   pub(crate) disable_invalid_brc20_tracking: bool,
   #[arg(
     long,
-    help = "Don't look for BRC20 messages below <FIRST_BRC20_HEIGHT>."
+    help = "Don't look for Inscription messages below <FIRST_INSCRIPTION_HEIGHT>."
   )]
   pub(crate) first_brc20_height: Option<u32>,
-  #[arg(
-    long,
-    help = "Don't look for unisat swap withdraw history messages below <FIRST_UNISAT_SWAP_HEIGHT>."
-  )]
-  pub(crate) first_unisat_swap_height: u32,
   #[clap(
     long,
     default_value = "",
     help = "the unisat api key where can get from https://developer.unisat.io/dashboard/fractal/mainnet"
   )]
-  pub(crate) unisat_api_key: String,
+  pub(crate) first_inscription_height: Option<u32>,
   #[clap(
     long,
     value_delimiter = ',',
     help = "set the fractal address black list, use ',' to separate between addresses"
   )]
   pub(crate) fractal_address_black_list: Vec<String>,
+
+  // UniSat defined options.
+  #[arg(long, help = "Index BRC-20 swaps.")]
+  pub(crate) index_brc20_swap: bool,
+  #[arg(long, help = "Inscription that define module functionality.")]
+  pub(crate) module_swap_source_inscription_id: Option<String>,
+  #[arg(long, help = "Zero address pk script for BRC-20 swaps.")]
+  pub(crate) brc20_module_swap_zero_address_pk_script: Option<String>,
 }

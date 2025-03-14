@@ -5,12 +5,18 @@ use super::{
   *,
 };
 
+mod commit;
+mod create_module;
 mod deploy;
 mod inscribe_transfer;
 mod mint;
 mod transfer;
+mod withdraw;
 
+pub type BRC20ExecutionMessageValue = [u8];
+impl_bincode_dynamic_entry!(BRC20ExecutionMessage, BRC20ExecutionMessageValue);
 /// Represents a message used for executing BRC20 operations.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub(crate) struct BRC20ExecutionMessage {
   txid: Txid,
   inscription_id: InscriptionId,
@@ -44,7 +50,9 @@ impl BRC20ExecutionMessage {
 
     match &value.inscription_action {
       InscriptionAction::Created { sub_type, .. } => {
+        log::debug!("debugbrc20 sub_type {:?}", sub_type);
         if let Some(SubType::BRC20(brc20_operation)) = sub_type {
+          log::debug!("debugbrc20 brc20_operation {:?}", brc20_operation);
           build_message(brc20_operation.clone())
         } else {
           Ok(None)
@@ -52,6 +60,10 @@ impl BRC20ExecutionMessage {
       }
       InscriptionAction::Transferred => match Option::<TransferredInscription>::from(value) {
         Some(transferred_inscription) => {
+          log::debug!(
+            "debugbrc20 transferred_inscription {:?}",
+            transferred_inscription
+          );
           match transferred_inscription.extract_and_validate_transfer(context) {
             Ok(Some(brc20_operation)) => build_message(brc20_operation),
             Ok(None) => Ok(None),
@@ -67,6 +79,7 @@ impl BRC20ExecutionMessage {
 impl BRC20ExecutionMessage {
   pub fn execute(
     self,
+    index: &Index,
     context: &mut TableContext,
     height: u32,
     blocktime: u32,
@@ -75,30 +88,65 @@ impl BRC20ExecutionMessage {
       BRC20Operation::Deploy(..) => self.execute_deploy(context, height, blocktime),
       BRC20Operation::Mint { .. } => self.execute_mint(context, height),
       BRC20Operation::InscribeTransfer(_) => self.execute_inscribe_transfer(context),
-      BRC20Operation::Transfer { .. } => self.execute_transfer(context),
+      BRC20Operation::Transfer { .. } => self.execute_transfer(index, context),
+      BRC20Operation::CreateModule(..) => {
+        self.execute_create_module(&self.inscription_id, index, context)
+      }
+      BRC20Operation::Withdraw(..) => self.execute_inscribe_withdraw(context),
+      BRC20Operation::Commit(..) => self.execute_inscribe_commit(index, context),
+      BRC20Operation::TransferWithdraw(..) => self.execute_transfer_withdraw(index, context),
+      BRC20Operation::TransferCommit(..) => {
+        self.execute_transfer_commit(&self.inscription_id, index, context)
+      }
     };
 
     match result {
       Ok(receipt) => Ok(receipt),
-      Err(ExecutionError::ExecutionFailed(e)) => Ok(BRC20Receipt {
-        // Handle specific execution failure
-        inscription_id: self.inscription_id,
-        sequence_number: self.sequence_number,
-        inscription_number: self.inscription_number,
-        old_satpoint: self.old_satpoint,
-        new_satpoint: self.new_satpoint,
-        op_type: BRC20OpType::from(&self.operation),
-        sender: self.sender.clone(),
-        receiver: self.receiver.unwrap_or(self.sender),
-        result: Err(e),
-      }),
-      Err(e) => {
+      Err(ExecutionError::ExecutionFailed(e)) => {
         log::error!(
-          "BRC20 execution failed: txid = {}, inscription_id = {}, error = {:?}",
+          "brc20 operation failed, txid = {}, inscription_id = {}, error = {:?}",
           self.txid,
           self.inscription_id,
           e
         );
+        // TODO: remove this after data verification
+        if matches!(self.operation, BRC20Operation::CreateModule(_))
+          || matches!(self.operation, BRC20Operation::Withdraw(_))
+          || matches!(self.operation, BRC20Operation::Commit(_))
+          || matches!(self.operation, BRC20Operation::TransferWithdraw(_))
+          || matches!(self.operation, BRC20Operation::TransferCommit(_))
+        {
+          panic!("brc20swap operation failed, ExecutionError{:?}", e);
+        }
+        Ok(BRC20Receipt {
+          // Handle specific execution failure
+          inscription_id: self.inscription_id,
+          sequence_number: self.sequence_number,
+          inscription_number: self.inscription_number,
+          old_satpoint: self.old_satpoint,
+          new_satpoint: self.new_satpoint,
+          op_type: BRC20OpType::from(&self.operation),
+          sender: self.sender.clone(),
+          receiver: self.receiver.unwrap_or(self.sender),
+          result: Err(e),
+        })
+      }
+      Err(e) => {
+        log::error!(
+          "brc20 execution failed: txid = {}, inscription_id = {}, error = {:?}",
+          self.txid,
+          self.inscription_id,
+          e
+        );
+        // TODO: remove this after data verification
+        if matches!(self.operation, BRC20Operation::CreateModule(_))
+          || matches!(self.operation, BRC20Operation::Withdraw(_))
+          || matches!(self.operation, BRC20Operation::Commit(_))
+          || matches!(self.operation, BRC20Operation::TransferWithdraw(_))
+          || matches!(self.operation, BRC20Operation::TransferCommit(_))
+        {
+          panic!("brc20swap operation failed, {:?}", e);
+        }
         Err(e.into())
       }
     }

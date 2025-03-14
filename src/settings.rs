@@ -1,4 +1,3 @@
-use crate::okx::uniswap::client::UnisatClient;
 use bitcoincore_rpc::json::GetBlockchainInfoResult;
 use bitcoincore_rpc::Result as BtcRpcResult;
 use {super::*, bitcoincore_rpc::Auth};
@@ -39,10 +38,12 @@ pub struct Settings {
   index_btc_domain: bool,
   index_brc20: bool,
   first_brc20_height: Option<u32>,
-  pub first_unisat_swap_height: u32,
-  unisat_api_key: String,
+  first_inscription_height: Option<u32>,
   fractal_address_black_list: Vec<String>,
   disable_invalid_brc20_tracking: bool,
+
+  index_brc20_swap: bool,
+  module_swap_source_inscription_id: Option<String>,
 }
 
 impl Settings {
@@ -164,8 +165,9 @@ impl Settings {
       index_btc_domain: self.index_btc_domain || source.index_btc_domain,
       index_brc20: self.index_brc20 || source.index_brc20,
       first_brc20_height: self.first_brc20_height.or(source.first_brc20_height),
-      first_unisat_swap_height: self.first_unisat_swap_height,
-      unisat_api_key: self.unisat_api_key,
+      first_inscription_height: self
+        .first_inscription_height
+        .or(source.first_inscription_height),
       fractal_address_black_list: if self.fractal_address_black_list.is_empty() {
         source.fractal_address_black_list
       } else {
@@ -173,6 +175,11 @@ impl Settings {
       },
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking
         || source.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: self.index_brc20_swap || source.index_brc20_swap,
+      module_swap_source_inscription_id: self
+        .module_swap_source_inscription_id
+        .or(source.module_swap_source_inscription_id),
     }
   }
 
@@ -216,10 +223,12 @@ impl Settings {
       index_btc_domain: options.index_btc_domain,
       index_brc20: options.index_brc20,
       first_brc20_height: options.first_brc20_height,
-      first_unisat_swap_height: options.first_unisat_swap_height,
-      unisat_api_key: options.unisat_api_key,
+      first_inscription_height: options.first_inscription_height,
       fractal_address_black_list: options.fractal_address_black_list,
       disable_invalid_brc20_tracking: options.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: options.index_brc20_swap,
+      module_swap_source_inscription_id: options.module_swap_source_inscription_id,
     }
   }
 
@@ -318,11 +327,12 @@ impl Settings {
       index_btc_domain: get_bool("INDEX_BTC_DOMAIN"),
       index_brc20: get_bool("INDEX_BRC20"),
       first_brc20_height: get_u32("FRIST_BRC20_HEIGHT")?,
-      first_unisat_swap_height: get_u32("FIRST_UNISAT_SWAP_HEIGHT")?.unwrap_or_default(),
-      unisat_api_key: get_string("UNISAT_API_KEY").unwrap_or_default(),
+      first_inscription_height: get_u32("FIRST_INSCRIPTION_HEIGHT")?,
       // TODO: get from env
       fractal_address_black_list: vec![],
       disable_invalid_brc20_tracking: get_bool("DISABLE_INVALID_BRC20_TRACKING"),
+      index_brc20_swap: get_bool("INDEX_BRC20_SWAP"),
+      module_swap_source_inscription_id: get_string("MODULE_SWAP_SOURCE_INSCRIPTION_ID"),
     })
   }
 
@@ -361,10 +371,12 @@ impl Settings {
       index_btc_domain: false,
       index_brc20: false,
       first_brc20_height: None,
-      first_unisat_swap_height: 0,
-      unisat_api_key: "".to_string(),
+      first_inscription_height: None,
       fractal_address_black_list: vec![],
       disable_invalid_brc20_tracking: false,
+
+      index_brc20_swap: false,
+      module_swap_source_inscription_id: None,
     }
   }
 
@@ -447,10 +459,12 @@ impl Settings {
       index_btc_domain: self.index_btc_domain,
       index_brc20: self.index_brc20,
       first_brc20_height: self.first_brc20_height,
-      first_unisat_swap_height: self.first_unisat_swap_height,
-      unisat_api_key: self.unisat_api_key,
+      first_inscription_height: self.first_inscription_height,
       fractal_address_black_list: self.fractal_address_black_list,
       disable_invalid_brc20_tracking: self.disable_invalid_brc20_tracking,
+
+      index_brc20_swap: self.index_brc20_swap,
+      module_swap_source_inscription_id: self.module_swap_source_inscription_id,
     })
   }
 
@@ -508,21 +522,26 @@ impl Settings {
       )
     })?;
 
+    #[derive(serde::Deserialize)]
+    struct ChainEnv {
+      chain: String,
+    }
     let mut checks = 0;
-    let rpc_chain = loop {
-      match get_blockchain_info(&client) {
-        Ok(blockchain_info) => {
-          break match blockchain_info.chain.to_string().as_str() {
-            "bitcoin" => Chain::Mainnet,
-            "regtest" => Chain::Regtest,
+    let rpc_chain: Chain = loop {
+      let chain_info: Result<ChainEnv, bitcoincore_rpc::Error> =
+        client.call("getblockchaininfo", &[]);
+      match chain_info {
+        Ok(chain_env) => {
+          break match chain_env.chain.as_str() {
+            "main" => Chain::Mainnet,
+            "test" => Chain::Testnet,
             "signet" => Chain::Signet,
-            "testnet" => Chain::Testnet,
-            other => bail!("Bitcoin RPC server on unknown chain: {other}"),
+            other => bail!("Fractal Bitcoin RPC server on unknown chain: {other}"),
           }
         }
         Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::Error::Rpc(err)))
           if err.code == -28 => {}
-        Err(err) => bail!("Failed to connect to Bitcoin Core RPC at `{rpc_url}`:  {err}"),
+        Err(err) => bail!("Failed to connect to Fractal Bitcoin Core RPC at `{rpc_url}`:  {err}"),
       }
 
       ensure! {
@@ -533,6 +552,7 @@ impl Settings {
       checks += 1;
       thread::sleep(Duration::from_millis(100));
     };
+    log::debug!("Connected to Bitcoin Core RPC at `{rpc_url}` on chain `{rpc_chain}`");
 
     let ord_chain = self.chain();
 
@@ -588,6 +608,9 @@ impl Settings {
     if self.integration_test {
       0
     } else {
+      if self.first_inscription_height.is_some() {
+        return self.first_inscription_height.unwrap();
+      }
       self.chain.unwrap().first_inscription_height()
     }
   }
@@ -600,13 +623,13 @@ impl Settings {
     }
   }
 
-  pub fn first_brc20_height(&self) -> u32 {
-    if self.integration_test {
-      0
-    } else {
-      self.chain.unwrap().first_brc20_height()
-    }
-  }
+  // pub fn first_brc20_height(&self) -> u32 {
+  //   if self.integration_test {
+  //     0
+  //   } else {
+  //     self.chain.unwrap().first_brc20_height()
+  //   }
+  // }
 
   pub fn height_limit(&self) -> Option<u32> {
     self.height_limit
@@ -684,6 +707,10 @@ impl Settings {
     self.index_brc20
   }
 
+  pub(crate) fn index_brc20_swap(&self) -> bool {
+    self.index_brc20_swap
+  }
+
   pub(crate) fn disable_invalid_brc20_tracking(&self) -> bool {
     self.disable_invalid_brc20_tracking
   }
@@ -696,12 +723,15 @@ impl Settings {
     self.index_btc_domain
   }
 
-  pub fn unisat_swap_client(&self) -> UnisatClient {
-    UnisatClient::new(&self.unisat_api_key)
-  }
-
   pub fn address_black_list(&self) -> Vec<String> {
     self.fractal_address_black_list.clone()
+  }
+
+  pub(crate) fn brc20_swap_source(&self) -> String {
+    match &self.module_swap_source_inscription_id {
+      Some(brc20_swap_source) => brc20_swap_source.to_string(),
+      None => String::new(),
+    }
   }
 }
 
@@ -1189,6 +1219,8 @@ mod tests {
       ("INDEX_BTC_DOMAIN", "1"),
       ("INDEX_BRC20", "1"),
       ("DISABLE_INVALID_BRC20_TRACKING", "1"),
+      ("INDEX_BRC20_SWAP", "1"),
+      ("MODULE_SWAP_SOURCE_INSCRIPTION_ID", "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0"),
     ]
     .into_iter()
     .map(|(key, value)| (key.into(), value.into()))
@@ -1240,10 +1272,14 @@ mod tests {
         index_btc_domain: true,
         index_brc20: true,
         first_brc20_height: None,
-        first_unisat_swap_height: 0,
-        unisat_api_key: "".to_string(),
+        first_inscription_height: None,
         fractal_address_black_list: vec![],
         disable_invalid_brc20_tracking: true,
+
+        index_brc20_swap: true,
+        module_swap_source_inscription_id: Some(
+          "34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".into()
+        ),
       }
     );
   }
@@ -1251,80 +1287,84 @@ mod tests {
   #[test]
   fn from_options() {
     pretty_assert_eq!(
-      Settings::from_options(
-        Options::try_parse_from([
-          "ord",
-          "--bitcoin-data-dir=/bitcoin/data/dir",
-          "--bitcoin-rpc-limit=12",
-          "--bitcoin-rpc-password=bitcoin password",
-          "--bitcoin-rpc-url=url",
-          "--bitcoin-rpc-username=bitcoin username",
-          "--chain=signet",
-          "--commit-interval=1",
-          "--config=config",
-          "--config-dir=config dir",
-          "--cookie-file=cookie file",
-          "--datadir=/data/dir",
-          "--height-limit=3",
-          "--index-addresses",
-          "--index-cache-size=4",
-          "--index-runes",
-          "--index-sats",
-          "--index-transactions",
-          "--index=index",
-          "--integration-test",
-          "--no-index-inscriptions",
-          "--server-password=server password",
-          "--server-username=server username",
-          "--log-dir=log_dir",
-          "--log-level=debug",
-          "--save-inscription-receipts",
-          "--index-bitmap",
-          "--index-btc-domain",
-          "--index-brc20",
-          "--disable-invalid-brc20-tracking",
-        ])
-        .unwrap()
-      ),
-      Settings {
-        bitcoin_data_dir: Some("/bitcoin/data/dir".into()),
-        bitcoin_rpc_limit: Some(12),
-        bitcoin_rpc_password: Some("bitcoin password".into()),
-        bitcoin_rpc_url: Some("url".into()),
-        bitcoin_rpc_username: Some("bitcoin username".into()),
-        chain: Some(Chain::Signet),
-        commit_interval: Some(1),
-        config: Some("config".into()),
-        config_dir: Some("config dir".into()),
-        cookie_file: Some("cookie file".into()),
-        data_dir: Some("/data/dir".into()),
-        height_limit: Some(3),
-        hidden: None,
-        http_port: None,
-        index: Some("index".into()),
-        index_addresses: true,
-        index_cache_size: Some(4),
-        index_runes: true,
-        index_sats: true,
-        index_transactions: true,
-        integration_test: true,
-        no_index_inscriptions: true,
-        server_password: Some("server password".into()),
-        server_url: None,
-        server_username: Some("server username".into()),
-        log_dir: Some("log_dir".into()),
-        log_level: Some(LogLevel::from_str("debug").unwrap()),
-        save_inscription_receipts: true,
-        index_bitmap: true,
-        index_btc_domain: true,
-        index_brc20: true,
-        first_brc20_height: None,
-        first_unisat_swap_height: 0,
-        unisat_api_key: "".to_string(),
-        fractal_address_black_list: vec![],
-        disable_invalid_brc20_tracking: true,
-      }
-    );
+          Settings::from_options(
+            Options::try_parse_from([
+              "ord",
+              "--bitcoin-data-dir=/bitcoin/data/dir",
+              "--bitcoin-rpc-limit=12",
+              "--bitcoin-rpc-password=bitcoin password",
+              "--bitcoin-rpc-url=url",
+              "--bitcoin-rpc-username=bitcoin username",
+              "--chain=signet",
+              "--commit-interval=1",
+              "--config=config",
+              "--config-dir=config dir",
+              "--cookie-file=cookie file",
+              "--datadir=/data/dir",
+              "--height-limit=3",
+              "--index-addresses",
+              "--index-cache-size=4",
+              "--index-runes",
+              "--index-sats",
+              "--index-transactions",
+              "--index=index",
+              "--integration-test",
+              "--no-index-inscriptions",
+              "--server-password=server password",
+              "--server-username=server username",
+              "--log-dir=log_dir",
+              "--log-level=debug",
+              "--save-inscription-receipts",
+              "--index-bitmap",
+              "--index-btc-domain",
+              "--index-brc20",
+              "--disable-invalid-brc20-tracking",
+              "--index-brc20-swap",
+              "--module_swap_source_inscription_id=34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0",
+            ])
+            .unwrap()
+          ),
+          Settings {
+            bitcoin_data_dir: Some("/bitcoin/data/dir".into()),
+            bitcoin_rpc_limit: Some(12),
+            bitcoin_rpc_password: Some("bitcoin password".into()),
+            bitcoin_rpc_url: Some("url".into()),
+            bitcoin_rpc_username: Some("bitcoin username".into()),
+            chain: Some(Chain::Signet),
+            commit_interval: Some(1),
+            config: Some("config".into()),
+            config_dir: Some("config dir".into()),
+            cookie_file: Some("cookie file".into()),
+            data_dir: Some("/data/dir".into()),
+            height_limit: Some(3),
+            hidden: None,
+            http_port: None,
+            index: Some("index".into()),
+            index_addresses: true,
+            index_cache_size: Some(4),
+            index_runes: true,
+            index_sats: true,
+            index_transactions: true,
+            integration_test: true,
+            no_index_inscriptions: true,
+            server_password: Some("server password".into()),
+            server_url: None,
+            server_username: Some("server username".into()),
+            log_dir: Some("log_dir".into()),
+            log_level: Some(LogLevel::from_str("debug").unwrap()),
+            save_inscription_receipts: true,
+            index_bitmap: true,
+            index_btc_domain: true,
+            index_brc20: true,
+            first_brc20_height: None,
+            first_inscription_height: None,
+            fractal_address_black_list: vec![],
+            disable_invalid_brc20_tracking: true,
+
+            index_brc20_swap: true,
+            module_swap_source_inscription_id: Some("34761af5d6aa0ab7f14589e6f0a905b505c40ba542c9a27d407c9d052499ffddi0".into()),
+          }
+        );
   }
 
   #[test]

@@ -43,6 +43,7 @@ pub use server_config::ServerConfig;
 
 mod accept_encoding;
 mod accept_json;
+mod brc20_swap;
 mod error;
 mod metrics;
 mod okx;
@@ -235,6 +236,22 @@ impl Server {
         .route(
           "/brc20/block/:block_hash/events",
           get(okx::brc20::brc20_block_events),
+        )
+        .route(
+          "/brc20-swap/module/:module_id/info",
+          get(brc20_swap::get_module_info),
+        )
+        .route(
+          "/brc20-swap/module/:module_id/address/:address/ticker/:ticker/balance",
+          get(brc20_swap::get_module_ticker_balance),
+        )
+        .route(
+          "/brc20-swap/module/:module_id/swap-pool-lp/:ticker1/:ticker2/balance",
+          get(brc20_swap::get_module_swap_pool_lp_balance),
+        )
+        .route(
+          "/brc20-swap/module/:module_id/address/:address/lp/:ticker1/:ticker2/balance",
+          get(brc20_swap::get_module_address_lp_balance),
         );
 
       let api_router = Router::new().nest("/v1", api_v1_router);

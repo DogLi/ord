@@ -1,3 +1,14 @@
+use bitcoincore_rpc::json::GetBlockchainInfoResult;
+
+use crate::okx::brc20::{
+  entry::{
+    BRC20ModuleAddressLPTokenBalanceKeyValue, BRC20ModuleAddressTokenBalanceKeyValue,
+    BRC20ModuleLPTokenBalanceValue, BRC20ModuleSwapPoolPairBalanceKeyValue,
+    BRC20ModuleSwapPoolPairBalanceValue, BRC20ModuleTokenBalanceValue,
+  },
+  operation::{commit::CommitValue, withdraw::WithdrawValue},
+};
+
 use {
   self::{
     entry::{
@@ -15,8 +26,8 @@ use {
     metrics::Metrics,
     okx::{
       brc20::entry::{
-        BRC20BalanceValue, BRC20LowerCaseTickerValue, BRC20ReceiptsValue, BRC20TickerInfoValue,
-        BRC20TransferAssetValue,
+        BRC20BalanceValue, BRC20LowerCaseTickerValue, BRC20ModuleInfoValue, BRC20ReceiptsValue,
+        BRC20TickerInfoValue, BRC20TransferAssetValue,
       },
       entry::{AddressTickerKeyValue, InscriptionReceiptsValue},
     },
@@ -101,6 +112,14 @@ define_table! { BRC20_TRANSACTION_ID_TO_RECEIPTS, &TxidValue, &BRC20ReceiptsValu
 define_table! { BRC20_SATPOINT_TO_TRANSFER_ASSETS, &SatPointValue, &BRC20TransferAssetValue }
 define_multimap_table! { BRC20_ADDRESS_TICKER_TO_TRANSFER_ASSETS, &AddressTickerKeyValue, &SatPointValue }
 
+// BRC-20 Swap tables
+define_table! { BRC20_MODULE_INFO, &str, &BRC20ModuleInfoValue }
+define_table! { BRC20_MODULE_ADDRESS_TICKER_BALANCE, &BRC20ModuleAddressTokenBalanceKeyValue, &BRC20ModuleTokenBalanceValue }
+define_table! { BRC20_MODULE_INSCRIBE_WITHDRAW, &SatPointValue, &WithdrawValue }
+define_table! { BRC20_MODULE_SWAP_POOL_BALANCES, &BRC20ModuleSwapPoolPairBalanceKeyValue, &BRC20ModuleSwapPoolPairBalanceValue }
+define_table! { BRC20_SWAP_COMMIT_INFO, &str, &CommitValue }
+define_table! { BRC20_MODULE_ADDRESS_LP_TOKEN_BALANCE, &BRC20ModuleAddressLPTokenBalanceKeyValue, &BRC20ModuleLPTokenBalanceValue }
+
 #[derive(Copy, Clone)]
 pub(crate) enum Statistic {
   Schema = 0,
@@ -126,6 +145,8 @@ pub(crate) enum Statistic {
   OkxIndexBTCDomain = 20,
   OkxSaveInscriptionReceipts = 21,
   OkxNoTrackingInvalidBrc20Inscriptions = 22,
+
+  OkxIndexBrc20Swap = 23,
 }
 
 impl Statistic {
@@ -250,6 +271,8 @@ pub struct Index {
   index_btc_domain: bool,
   save_inscription_receipts: bool,
   disable_invalid_brc20_tracking: bool,
+
+  index_brc20_swap: bool,
 }
 
 impl Index {
@@ -386,6 +409,10 @@ impl Index {
         tx.open_table(BRC20_SATPOINT_TO_TRANSFER_ASSETS)?;
         tx.open_multimap_table(BRC20_ADDRESS_TICKER_TO_TRANSFER_ASSETS)?;
 
+        // brc20 swap tables
+        tx.open_table(BRC20_MODULE_INFO)?;
+        tx.open_table(BRC20_MODULE_ADDRESS_TICKER_BALANCE)?;
+
         {
           let mut statistics = tx.open_table(STATISTIC_TO_COUNT)?;
 
@@ -439,6 +466,14 @@ impl Index {
               Statistic::OkxSaveInscriptionReceipts,
               u64::from(settings.save_inscription_receipts()),
             )?;
+
+            if settings.index_brc20() {
+              Self::set_statistic(
+                &mut statistics,
+                Statistic::OkxIndexBrc20Swap,
+                u64::from(settings.index_brc20_swap()),
+              )?;
+            }
 
             if settings.chain() == Chain::Mainnet {
               Self::set_statistic(
@@ -519,6 +554,8 @@ impl Index {
     let save_inscription_receipts;
     let disable_invalid_brc20_tracking;
 
+    let index_brc20_swap;
+
     {
       let tx = database.begin_read()?;
       let statistics = tx.open_table(STATISTIC_TO_COUNT)?;
@@ -533,6 +570,7 @@ impl Index {
         &statistics,
         Statistic::OkxNoTrackingInvalidBrc20Inscriptions,
       )?;
+      index_brc20_swap = Self::is_statistic_set(&statistics, Statistic::OkxIndexBrc20Swap)?;
 
       index_bitmap = Self::is_statistic_set(&statistics, Statistic::OkxIndexBitmap)?;
       index_btc_domain = Self::is_statistic_set(&statistics, Statistic::OkxIndexBTCDomain)?;
@@ -579,6 +617,8 @@ impl Index {
       index_btc_domain,
       save_inscription_receipts,
       disable_invalid_brc20_tracking,
+
+      index_brc20_swap,
     })
   }
   pub(crate) fn with_metrics(mut self) -> Self {
@@ -641,6 +681,10 @@ impl Index {
     self.index_brc20
   }
 
+  pub fn has_brc20_swap_index(&self) -> bool {
+    self.index_brc20_swap
+  }
+
   pub fn has_bitmap_index(&self) -> bool {
     self.index_bitmap
   }
@@ -651,6 +695,14 @@ impl Index {
 
   pub fn has_inscription_receipts(&self) -> bool {
     self.save_inscription_receipts
+  }
+
+  pub fn brc20_swap_source(&self) -> String {
+    self.settings.brc20_swap_source()
+  }
+
+  pub fn chain(&self) -> Chain {
+    self.settings.chain()
   }
 
   pub fn status(&self, json_api: bool) -> Result<StatusHtml> {
@@ -812,7 +864,7 @@ impl Index {
       match updater.update_index(wtx) {
         Ok(ok) => return Ok(ok),
         Err(err) => {
-          log::info!("{}", err.to_string());
+          log::info!("updater.update_index error: {}", err.to_string());
 
           match err.downcast_ref() {
             Some(&reorg::Error::Recoverable { height, depth }) => {
@@ -2578,6 +2630,18 @@ impl Index {
       ),
       txout,
     )))
+  }
+
+  pub(crate) fn proxy_get_blockchain_info(
+    &self,
+  ) -> Result<GetBlockchainInfoResult, bitcoincore_rpc::Error> {
+    match self.client.call("getblockchaininfo", &[]) {
+      Ok(result) => Ok(result),
+      Err(err) => {
+        log::error!("index.proxy_get_blockchain_info error: {}", err.to_string());
+        Err(err)
+      }
+    }
   }
 }
 

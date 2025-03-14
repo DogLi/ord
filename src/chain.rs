@@ -38,8 +38,8 @@ impl Chain {
     match self {
       Self::Mainnet => 21000,
       Self::Regtest => 0,
-      Self::Signet => 112402,
-      Self::Testnet => 2413343,
+      Self::Signet => 0,
+      Self::Testnet => 0,
     }
   }
 
@@ -49,7 +49,7 @@ impl Chain {
       Self::Mainnet => 21000,
       Self::Regtest => 0,
       Self::Signet => 0,
-      Self::Testnet => 2413343,
+      Self::Testnet => 0,
     }
   }
 
@@ -61,9 +61,9 @@ impl Chain {
   pub(crate) fn jubilee_height(self) -> u32 {
     match self {
       Self::Mainnet => 21000,
-      Self::Regtest => 110,
-      Self::Signet => 175392,
-      Self::Testnet => 2544192,
+      Self::Regtest => 0,
+      Self::Signet => 0,
+      Self::Testnet => 0,
     }
   }
 
@@ -80,6 +80,10 @@ impl Chain {
 
   pub(crate) fn address_from_script(self, script: &Script) -> Result<Address, SnafuError> {
     Address::from_script(script, self.network()).snafu_context(error::AddressConversion)
+  }
+
+  pub(crate) fn to_script_pubkey(self, address: &Address) -> ScriptBuf {
+    address.script_pubkey()
   }
 
   pub(crate) fn join_with_data_dir(self, data_dir: impl AsRef<Path>) -> PathBuf {

@@ -149,7 +149,8 @@ impl Reorg {
       .map(|last_savepoint_height| last_savepoint_height.value())
       .unwrap_or(0);
 
-    let blocks = index.client.get_blockchain_info()?.headers;
+    // let blocks = index.client.get_blockchain_info()?.headers;
+    let blocks = index.proxy_get_blockchain_info()?.headers;
 
     if (height < SAVEPOINT_INTERVAL.into()
       || height.saturating_sub(last_savepoint_height) >= SAVEPOINT_INTERVAL.into())

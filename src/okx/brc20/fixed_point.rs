@@ -470,4 +470,16 @@ mod tests {
     let mut l = FixedPoint::MIN;
     l -= FixedPoint { value: 1, scale: 0 };
   }
+
+  #[test]
+  fn test_from_str_with_scale() {
+    let decimal = FixedPoint::new_from_str("0.003", 3).unwrap();
+    println!("decimal: {:?}", decimal);
+  }
+
+  #[test]
+  fn test_() {
+    let amt = FixedPoint::new_from_str("77925.59776823", 8).unwrap();
+    println!("amt: {:?}", amt);
+  }
 }
