@@ -103,12 +103,6 @@ impl BRC20ExecutionMessage {
     match result {
       Ok(receipt) => Ok(receipt),
       Err(ExecutionError::ExecutionFailed(e)) => {
-        log::error!(
-          "brc20 operation failed, txid = {}, inscription_id = {}, error = {:?}",
-          self.txid,
-          self.inscription_id,
-          e
-        );
         // TODO: remove this after data verification
         if matches!(self.operation, BRC20Operation::CreateModule(_))
           || matches!(self.operation, BRC20Operation::Withdraw(_))

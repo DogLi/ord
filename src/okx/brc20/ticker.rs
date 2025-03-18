@@ -51,6 +51,13 @@ impl FromStr for BRC20Ticker {
       return Err(Error::Range);
     }
 
+    // Fractal Bitcoin limits the ticker characters:
+    for c in bytes {
+      if BRC20Ticker::TICKER_B63[*c as usize] > 63 {
+        return Err(Error::InvalidChar);
+      }
+    }
+
     Ok(Self(bytes.into()))
   }
 }
@@ -77,12 +84,14 @@ impl Display for BRC20LowerCaseTicker {
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum Error {
   Range,
+  InvalidChar,
 }
 
 impl Display for Error {
   fn fmt(&self, f: &mut Formatter) -> fmt::Result {
     match self {
       Self::Range => write!(f, "ticker name out of range"),
+      Self::InvalidChar => write!(f, "ticker characters invalid"),
     }
   }
 }
@@ -323,5 +332,16 @@ mod tests {
     let lower = obj.to_lowercase();
     let serialized = serde_json::to_string(&lower).unwrap();
     assert_eq!(serialized, "\"xxai\u{307}\"");
+  }
+
+  #[test]
+  fn test_ticker_char_validation() {
+    assert!(BRC20Ticker::from_str("hello___").is_ok());
+    assert!(BRC20Ticker::from_str("hello_world").is_ok());
+    assert!(BRC20Ticker::from_str("1029asdf_").is_ok());
+    assert!(BRC20Ticker::from_str("&sdfsdf").is_err());
+    assert!(BRC20Ticker::from_str("1029a(sdf_").is_err());
+    assert!(BRC20Ticker::from_str("!llo_world_").is_err());
+    assert!(BRC20Ticker::from_str("GLIZZY_").is_ok());
   }
 }
