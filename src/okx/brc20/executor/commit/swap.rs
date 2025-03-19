@@ -127,8 +127,7 @@ impl SwapFunctionData {
           ExecutionError::ExecutionFailed(BRC20Error::DecimalParseError(token_out_amt_str.clone()))
         },
       )?;
-    if token_out_amt.sign() < 0 || token_out_amt.clone().to_u128().0 > token_out_info.total_supply
-    {
+    if token_out_amt.sign() < 0 || token_out_amt.clone().to_u128().0 > token_out_info.total_supply {
       log::debug!(
         "brc20swap error handle_swap: token amount bigger than total supply: {}, total supply: {}",
         token_out_amt,
@@ -248,9 +247,9 @@ impl SwapFunctionData {
                 Brc20Decimal::from_u128(1000, 3)
                   .unwrap()
                   .sub(module_info.fee_rate_swap.clone()),
-              )
-              .add(Brc20Decimal::from_u128(1, token_in_amt.clone().get_precision()).unwrap()),
+              ),
           )
+          .add(Brc20Decimal::from_u128(1, token_in_amt.clone().get_precision()).unwrap());
       } else {
         amount_in = pool_balance.tick_balance[token_in_idx]
           .clone()

@@ -106,13 +106,12 @@ pub struct Options {
   pub(crate) disable_invalid_brc20_tracking: bool,
   #[arg(
     long,
-    help = "Don't look for Inscription messages below <FIRST_INSCRIPTION_HEIGHT>."
+    help = "Don't look for BRC-20 messages below <FIRST_BRC20_HEIGHT>."
   )]
   pub(crate) first_brc20_height: Option<u32>,
-  #[clap(
+  #[arg(
     long,
-    default_value = "",
-    help = "the unisat api key where can get from https://developer.unisat.io/dashboard/fractal/mainnet"
+    help = "Don't look for Inscription messages below <FIRST_INSCRIPTION_HEIGHT>."
   )]
   pub(crate) first_inscription_height: Option<u32>,
   #[clap(

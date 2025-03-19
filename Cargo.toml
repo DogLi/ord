@@ -110,3 +110,6 @@ path = "tests/lib.rs"
 [features]
 default = []
 openssl = ["openssl/vendored"]
+
+[profile.release]
+debug = true

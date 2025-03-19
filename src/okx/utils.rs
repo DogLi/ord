@@ -54,8 +54,8 @@ pub fn get_valid_unique_lower_ticker(ticker: &str) -> Result<String, Error> {
     return Err(anyhow!("ticker is too long"));
   }
 
-  for c in ticker.chars() {
-    if BRC20Ticker::TICKER_B63[c as usize] > 63 {
+  for c in ticker.as_bytes() {
+    if BRC20Ticker::TICKER_B63[*c as usize] > 63 {
       return Err(anyhow!("ticker invalid"));
     }
   }
