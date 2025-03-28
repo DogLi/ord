@@ -74,7 +74,6 @@ pub struct CreatedInscription<'a> {
   pub inscription_number: i32,
   pub parents: &'a Vec<InscriptionId>,
   pub new_satpoint: SatPoint,
-  pub pre_jubilant_curse_reason: Option<&'a Curse>,
   pub charms: u16,
   pub tapscript_pk: [u8; 35],
 }
@@ -91,7 +90,6 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
       Action::Created {
         inscription,
         parents,
-        pre_jubilant_curse_reason,
         charms,
         tapscript_pk,
         ..
@@ -103,7 +101,6 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
         inscription_number: event.inscription_number,
         parents: &parents,
         new_satpoint: event.new_satpoint,
-        pre_jubilant_curse_reason: pre_jubilant_curse_reason.as_ref(),
         charms: *charms,
         tapscript_pk: *tapscript_pk,
       }),
@@ -123,8 +120,8 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
       height,
       &chain,
       self.charms,
-      self.pre_jubilant_curse_reason,
     ) {
+      let first_inscription = self.inscription_id.index == 0;
       let address_type = if height < HardForks::self_single_step_transfer_activation_height(&chain) {
         0
       }else {
@@ -139,6 +136,9 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
 
       match self.inscription.extract_brc20_operation() {
         Ok(RawOperation::Deploy(deploy)) => {
+          if !first_inscription {
+            return None;
+          }
           // Filter out invalid deployments with a 5-byte ticker.
           // proposal for issuance self mint token.
           // https://l1f.discourse.group/t/brc-20-proposal-for-issuance-and-burn-enhancements-brc20-ip-1/621
@@ -165,11 +165,20 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
           // }
           Some(BRC20Operation::Deploy(deploy))
         }
-        Ok(RawOperation::Mint(mint)) => Some(BRC20Operation::Mint {
-          op: mint,
-          parent: self.parents.first().cloned(),
-        }),
+        Ok(RawOperation::Mint(mint)) => {
+          if !first_inscription {
+            return None;
+          }
+          Some(BRC20Operation::Mint {
+            op: mint,
+            parent: self.parents.first().cloned(),
+          })
+        }
         Ok(RawOperation::Transfer(transfer)) => {
+          if address_type == 0 && !first_inscription {
+            return None;
+          }
+
           Some(BRC20Operation::InscribeTransfer {
             signer,
             transfer,
