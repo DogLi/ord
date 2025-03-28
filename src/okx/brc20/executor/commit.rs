@@ -45,6 +45,36 @@ impl BRC20ExecutionMessage {
       self.inscription_id
     );
 
+    // skip invalid commit
+    if self.inscription_id.to_string() == "56ae3cc5e5ca64114cd1fb834254c0d196144ed60b821ad1c0511801c5b16283i0"   // invalid commit due to insufficient balance, [INFO] 这个不能删除，会导致回滚，需要写死到代码
+      || self.inscription_id.to_string() == "f31d611021a5b26adda9a91ff2d1dacd52dda6a151147820f56ac9f7dae0a902i0" // invalid commit due to invalid parent
+      || self.inscription_id.to_string() == "15c0aff274bfeeb4706fa0a85fa666ace8a3f4bc11e8c446188e7a030966760fi0"
+    // invalid commit due to invalid parent
+      || self.inscription_id.to_string() == "4cd999f20bede0a7cc2a1d69f1370f8cafd2ca73d1f0984da5d112f623da7eb6i0"
+    // invalid commit due to invalid parent
+      || self.inscription_id.to_string() == "66a8c7b62b0be2d21d2b7918315a97e4fa83e10b3a0bf161f4ac0768cecf4545i0"
+    // invalid commit due to invalid parent
+    {
+      log::info!(
+        "brc20swap execute_inscribe_commit skip invalid commit, txid: {:?}, inscription_id: {:?}",
+        self.txid,
+        self.inscription_id
+      );
+      return Ok(BRC20Receipt {
+        inscription_id: self.inscription_id,
+        sequence_number: self.sequence_number,
+        inscription_number: self.inscription_number,
+        old_satpoint: self.old_satpoint,
+        new_satpoint: self.new_satpoint,
+        op_type: BRC20OpType::Commit,
+        sender: self.sender.clone(),
+        receiver: self.sender.clone(),
+        result: Ok(BRC20Event::InscribeCommit(event::InscribeCommitEvent {
+          module: self.inscription_id.to_string(),
+        })),
+      });
+    }
+
     match self.pre_verify_inscribe_commit(index, context) {
       Ok(commit) => context.update_commit_info(&self.inscription_id.to_string(), commit.clone())?,
       Err(e) => return Err(e),
@@ -61,7 +91,7 @@ impl BRC20ExecutionMessage {
       inscription_number: self.inscription_number,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
-      op_type: BRC20OpType::Withdraw,
+      op_type: BRC20OpType::Commit,
       sender: self.sender.clone(),
       receiver: self
         .receiver
@@ -85,6 +115,31 @@ impl BRC20ExecutionMessage {
       self.txid,
       self.inscription_id
     );
+
+    if self.inscription_id.to_string()
+      == "56ae3cc5e5ca64114cd1fb834254c0d196144ed60b821ad1c0511801c5b16283i0"
+      || self.inscription_id.to_string()
+        == "15c0aff274bfeeb4706fa0a85fa666ace8a3f4bc11e8c446188e7a030966760fi0"
+    {
+      log::info!(
+        "brc20swap execute_transfer_commit skip invalid commit, txid: {:?}, inscription_id: {:?}",
+        self.txid,
+        self.inscription_id
+      );
+      return Ok(BRC20Receipt {
+        inscription_id: self.inscription_id,
+        sequence_number: self.sequence_number,
+        inscription_number: self.inscription_number,
+        old_satpoint: self.old_satpoint,
+        new_satpoint: self.new_satpoint,
+        op_type: BRC20OpType::TransferCommit,
+        sender: self.sender.clone(),
+        receiver: self.sender.clone(),
+        result: Ok(BRC20Event::TransferCommit(event::TransferCommitEvent {
+          module: self.inscription_id.to_string(),
+        })),
+      });
+    }
 
     let BRC20Operation::TransferCommit(commit) = &self.operation else {
       log::debug!(
@@ -390,6 +445,9 @@ impl BRC20ExecutionMessage {
                 item.function.clone(),
                 item.clone()
               );
+              return Err(ExecutionError::ExecutionFailed(
+                BRC20Error::CommitHandleFunctionFailed(self.inscription_id.to_string()),
+              ));
             }
           }
         } else {
@@ -420,7 +478,7 @@ impl BRC20ExecutionMessage {
       inscription_number: self.inscription_number,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
-      op_type: BRC20OpType::Commit,
+      op_type: BRC20OpType::TransferCommit,
       sender: self.sender.clone(),
       receiver: self.sender.clone(),
       result: Ok(BRC20Event::TransferCommit(event::TransferCommitEvent {

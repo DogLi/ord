@@ -51,11 +51,6 @@ impl Updater<'_> {
     let start = Instant::now();
     let starting_height = u32::try_from(self.index.client.get_block_count()?).unwrap() + 1;
     let starting_index_height = self.height;
-    log::debug!(
-      "updater.update_index starting_height: {:?} starting_index_height: {:?}",
-      starting_height,
-      starting_index_height
-    );
 
     wtx
       .open_table(WRITE_TRANSACTION_STARTING_BLOCK_COUNT_TO_TIMESTAMP)?
@@ -101,11 +96,6 @@ impl Updater<'_> {
     let mut uncommitted = 0;
     let mut utxo_cache = HashMap::new();
     while let Ok(block) = rx.recv() {
-      log::info!(
-        "start to index block, block hash is {:?}, updater height is: {}",
-        block.header.block_hash(),
-        self.height,
-      );
       match self.index_block(
         &mut output_sender,
         &mut txout_receiver,
@@ -171,6 +161,10 @@ impl Updater<'_> {
         break;
       }
     }
+    log::info!(
+      "all blocks received, out of while-loop, block: {}",
+      self.height - 1
+    );
 
     if starting_index_height == 0 && self.height > 0 {
       wtx.open_table(STATISTIC_TO_COUNT)?.insert(
@@ -943,13 +937,7 @@ impl Updater<'_> {
     wtx: WriteTransaction,
     utxo_cache: HashMap<OutPoint, UtxoEntryBuf>,
   ) -> Result {
-    log::info!(
-      "Committing at block height {}, {} outputs traversed, {} in map, {} cached",
-      self.height,
-      self.outputs_traversed,
-      utxo_cache.len(),
-      self.outputs_cached
-    );
+    log::info!("Committing at block height {}", self.height - 1);
 
     {
       let mut outpoint_to_utxo_entry = wtx.open_table(OUTPOINT_TO_UTXO_ENTRY)?;
@@ -990,7 +978,6 @@ impl Updater<'_> {
     // Commit twice since due to a bug redb will only reuse pages freed in the
     // transaction before last.
     self.index.begin_write()?.commit()?;
-    log::info!("Commit successfully at height: {}", self.height);
 
     match Reorg::update_savepoints(self.index, self.height) {
       Ok(()) => (),
@@ -1000,6 +987,7 @@ impl Updater<'_> {
       }
     }
 
+    log::info!("Commit successfully at height: {}", self.height - 1);
     Ok(())
   }
 }

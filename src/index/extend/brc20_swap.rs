@@ -1,7 +1,7 @@
 use crate::okx::brc20::entry::{
   BRC20ModuleAddressLPTokenBalanceKey, BRC20ModuleAddressTokenBalanceKey, BRC20ModuleInfo,
   BRC20ModuleLPTokenBalance, BRC20ModulePoolPair, BRC20ModuleSwapPoolPairBalance,
-  BRC20ModuleSwapPoolPairBalanceKey, BRC20ModuleTokenBalance,
+  BRC20ModuleSwapPoolPairBalanceKey, BRC20ModuleTokenBalance, BRC20SwapInfo,
 };
 
 use super::*;
@@ -73,5 +73,33 @@ impl Index {
         )?
         .map(|v| BRC20ModuleTokenBalance::load(v.value())),
     )
+  }
+  pub(crate) fn get_brc20_swap_info(self: &Index, rtx: &Rtx) -> Result<BRC20SwapInfo, Error> {
+    let total_module_count = rtx.0.open_table(BRC20_MODULE_INFO)?.len()?;
+    let total_module_address_count = rtx
+      .0
+      .open_table(BRC20_MODULE_ADDRESS_TICKER_BALANCE)?
+      .len()?;
+    let total_module_swap_pool_address_count = rtx
+      .0
+      .open_table(BRC20_MODULE_ADDRESS_LP_TOKEN_BALANCE)?
+      .len()?;
+    let total_module_swap_pool_pair_count =
+      rtx.0.open_table(BRC20_MODULE_SWAP_POOL_BALANCES)?.len()?;
+
+    let all_modules = rtx
+      .0
+      .open_table(BRC20_MODULE_INFO)?
+      .iter()?
+      .map(|result| result.map(|(_, value)| BRC20ModuleInfo::load(value.value())))
+      .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(BRC20SwapInfo {
+      total_module_count,
+      total_module_address_count,
+      total_module_swap_pool_address_count,
+      total_module_swap_pool_pair_count,
+      all_modules,
+    })
   }
 }

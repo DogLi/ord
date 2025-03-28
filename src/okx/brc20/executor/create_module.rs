@@ -28,7 +28,7 @@ impl BRC20ExecutionMessage {
     };
 
     if index.brc20_swap_source() != create_module.source {
-      log::debug!(
+      log::warn!(
         "brc20swap error create_module, module_source_not_match: {:?}, {:?}",
         index.brc20_swap_source(),
         create_module.source

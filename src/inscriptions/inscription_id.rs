@@ -190,4 +190,15 @@ mod tests {
       Err(ParseError::Txid(_)),
     );
   }
+
+  #[test]
+  fn to_string() {
+    let inscription_id = InscriptionId {
+      txid: "56ae3cc5e5ca64114cd1fb834254c0d196144ed60b821ad1c0511801c5b16283"
+        .parse()
+        .unwrap(),
+      index: 0,
+    };
+    println!("{}", inscription_id.to_string());
+  }
 }

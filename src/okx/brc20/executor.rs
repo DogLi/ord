@@ -104,10 +104,16 @@ impl BRC20ExecutionMessage {
       Ok(receipt) => Ok(receipt),
       Err(ExecutionError::ExecutionFailed(e)) => {
         // TODO: remove this after data verification
-        if matches!(self.operation, BRC20Operation::CreateModule(_))
-          || matches!(self.operation, BRC20Operation::Withdraw(_))
+        // [INFO]: create module 在115422高度遇见source不匹配的事件，是非法的swap操作，而非程序错误，先跳过。铭文ID：8eb007fea05b4459e39a2e62912b264a285f6dd0471b267f00703aeb0a9977d3
+        // [INFO]: withdraw 在高度159742高度遇到非法提现，跳过。txid: fc1d944710cabc67ecf6421fc0bcd2820ea2614c249bf23f86aac809339923e0
+        //         会遇到invalid withdraw，直接跳过188516高度
+        // [INFO]: commit 在高度188355高度遇到非法swap，是第一个func，所以不需要回滚整个commit事件，直接跳过。txid: bc18513f78b1e2926e483c5d728b03d1098a752e12f0be7ff78851e9b55b0920 (inscribe_commit对应tx为56ae3cc5e5ca64114cd1fb834254c0d196144ed60b821ad1c0511801c5b16283)
+        //         又碰到了一个非法的commit事件， height:188372，txid: b9dfbfb1dec1764a3870638faf173974ac4ca44e689cb82a1e2ae1d56610c4e8, inscription_id:f31d611021a5b26adda9a91ff2d1dacd52dda6a151147820f56ac9f7dae0a902i0
+        //            invalid parent, 因为在188355高度碰到了非法的commit, 直接跳过了，db没有更新module的commit_id, 而188372这个height的commit事件的parent是188355的commit_id, 所以是非法的commit，直接跳到下一个合法的commit高度：189384
+        if (matches!(self.operation, BRC20Operation::CreateModule(_)) && height > 115422)
+          || (matches!(self.operation, BRC20Operation::Withdraw(_)) && height > 159742)
           || matches!(self.operation, BRC20Operation::Commit(_))
-          || matches!(self.operation, BRC20Operation::TransferWithdraw(_))
+          || (matches!(self.operation, BRC20Operation::TransferWithdraw(_)) && height > 188516)
           || matches!(self.operation, BRC20Operation::TransferCommit(_))
         {
           panic!("brc20swap operation failed, ExecutionError{:?}", e);

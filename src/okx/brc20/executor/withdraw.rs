@@ -346,7 +346,7 @@ impl BRC20ExecutionMessage {
       inscription_number: self.inscription_number,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
-      op_type: BRC20OpType::Withdraw,
+      op_type: BRC20OpType::TransferWithdraw,
       sender: self.sender.clone(),
       receiver: self
         .receiver

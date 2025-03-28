@@ -237,6 +237,7 @@ impl Server {
           "/brc20/block/:block_hash/events",
           get(okx::brc20::brc20_block_events),
         )
+        .route("/brc20-swap/info", get(brc20_swap::get_brc20_swap_info))
         .route(
           "/brc20-swap/module/:module_id/info",
           get(brc20_swap::get_module_info),

@@ -165,13 +165,14 @@ impl Reorg {
         wtx.delete_persistent_savepoint(point)?;
         Self::remove_point(point);
       }
+      wtx.commit()?;
 
       let wtx = index.begin_write()?;
 
       log::info!("creating savepoint at height {}", height);
       let point = wtx.persistent_savepoint()?;
       Self::insert_point(height, point);
-      wtx.persistent_savepoint()?;
+      //wtx.persistent_savepoint()?;
 
       wtx
         .open_table(STATISTIC_TO_COUNT)?

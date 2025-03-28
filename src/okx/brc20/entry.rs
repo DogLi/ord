@@ -73,6 +73,14 @@ pub struct BRC20Receipt {
   pub result: Result<BRC20Event, BRC20Error>,
 }
 
+pub struct BRC20SwapInfo {
+  pub total_module_count: u64,
+  pub total_module_address_count: u64,
+  pub total_module_swap_pool_address_count: u64,
+  pub total_module_swap_pool_pair_count: u64,
+  pub all_modules: Vec<BRC20ModuleInfo>,
+}
+
 pub type BRC20ModuleInfoValue = [u8];
 impl_bincode_dynamic_entry!(BRC20ModuleInfo, BRC20ModuleInfoValue);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

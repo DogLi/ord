@@ -173,3 +173,32 @@ pub(crate) async fn get_module_swap_pool_lp_balance(
     last_root_k: module_swap_pool_lp_balance.last_root_k.to_string(),
   }))
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Brc20SwapInfo {
+  pub total_module_count: u64,
+  pub total_module_address_count: u64,
+  pub total_module_swap_pool_address_count: u64,
+  pub total_module_swap_pool_pair_count: u64,
+  pub all_modules: Vec<BRC20ModuleInfo>,
+}
+
+pub(crate) async fn get_brc20_swap_info(
+  Extension(index): Extension<Arc<Index>>,
+) -> Result<Json<Brc20SwapInfo>, ServerError> {
+  let rtx = index.begin_read()?;
+
+  let swap_info = match Index::get_brc20_swap_info(&index, &rtx) {
+    Ok(swap_info) => swap_info,
+    Err(e) => return Err(ServerError::Internal(e.into())),
+  };
+
+  Ok(Json(Brc20SwapInfo {
+    total_module_count: swap_info.total_module_count,
+    total_module_address_count: swap_info.total_module_address_count,
+    total_module_swap_pool_address_count: swap_info.total_module_swap_pool_address_count,
+    total_module_swap_pool_pair_count: swap_info.total_module_swap_pool_pair_count,
+    all_modules: swap_info.all_modules,
+  }))
+}
