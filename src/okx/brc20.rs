@@ -17,7 +17,9 @@ mod fixed_point;
 pub(crate) mod operation;
 mod policies;
 mod ticker;
+mod utils;
 mod verify;
+
 pub static MAXIMUM_SUPPLY: Lazy<FixedPoint> =
   Lazy::new(|| FixedPoint::new_unchecked(u128::from(u64::MAX), 0));
 
@@ -35,7 +37,10 @@ pub enum BRC20Operation {
     op: Mint,
     parent: Option<InscriptionId>,
   },
-  InscribeTransfer(Transfer),
+  InscribeTransfer {
+    signer: Option<UtxoAddress>,
+    transfer: Transfer,
+  },
   Transfer {
     ticker: BRC20Ticker,
     amount: u128,
@@ -71,6 +76,7 @@ pub struct CreatedInscription<'a> {
   pub new_satpoint: SatPoint,
   pub pre_jubilant_curse_reason: Option<&'a Curse>,
   pub charms: u16,
+  pub tapscript_pk: [u8; 35],
 }
 
 impl CreatedInscription<'_> {
@@ -87,6 +93,7 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
         parents,
         pre_jubilant_curse_reason,
         charms,
+        tapscript_pk,
         ..
       } => Some(CreatedInscription {
         txid: event.txid,
@@ -98,6 +105,7 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
         new_satpoint: event.new_satpoint,
         pre_jubilant_curse_reason: pre_jubilant_curse_reason.as_ref(),
         charms: *charms,
+        tapscript_pk: *tapscript_pk,
       }),
       _ => None,
     }
@@ -149,7 +157,19 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
           op: mint,
           parent: self.parents.first().cloned(),
         }),
-        Ok(RawOperation::Transfer(transfer)) => Some(BRC20Operation::InscribeTransfer(transfer)),
+        Ok(RawOperation::Transfer(transfer)) => {
+          let address_type = self.tapscript_pk[34];
+          let signer = if address_type > 0 {
+            let script = utils::get_pk_script_by_pubkey_and_type(&self.tapscript_pk[1..33], address_type);
+            Some(UtxoAddress::from_script(script.as_script(), &chain))
+          } else {
+            None
+          };
+          Some(BRC20Operation::InscribeTransfer{
+            signer,
+            transfer,
+          })
+        }
         Ok(RawOperation::CreateModule(create_module)) => {
           Some(BRC20Operation::CreateModule(create_module))
         }

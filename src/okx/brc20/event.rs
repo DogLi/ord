@@ -19,7 +19,7 @@ impl From<&BRC20Operation> for BRC20OpType {
     match value {
       BRC20Operation::Deploy(_) => BRC20OpType::Deploy,
       BRC20Operation::Mint { .. } => BRC20OpType::Mint,
-      BRC20Operation::InscribeTransfer(_) => BRC20OpType::InscribeTransfer,
+      BRC20Operation::InscribeTransfer{ .. } => BRC20OpType::InscribeTransfer,
       BRC20Operation::Transfer { .. } => BRC20OpType::Transfer,
       BRC20Operation::CreateModule(_) => BRC20OpType::CreateModule,
       BRC20Operation::Withdraw(_) => BRC20OpType::Withdraw,
