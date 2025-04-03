@@ -74,16 +74,48 @@ impl Index {
         .map(|v| BRC20ModuleTokenBalance::load(v.value())),
     )
   }
-  pub(crate) fn get_brc20_swap_info(self: &Index, rtx: &Rtx) -> Result<BRC20SwapInfo, Error> {
+  pub(crate) fn get_brc20_swap_info(
+    self: &Index,
+    rtx: &Rtx,
+    without_op_return_address: bool,
+  ) -> Result<BRC20SwapInfo, Error> {
+    log::debug!(
+      "get_brc20_swap_info, without_op_return_address: {}",
+      without_op_return_address
+    );
     let total_module_count = rtx.0.open_table(BRC20_MODULE_INFO)?.len()?;
     let total_module_address_count = rtx
       .0
       .open_table(BRC20_MODULE_ADDRESS_TICKER_BALANCE)?
-      .len()?;
+      .range::<&[u8]>(..)?
+      .filter(|result| {
+        if let Ok((key, _)) = result {
+          let key: BRC20ModuleAddressTokenBalanceKey = DynamicEntry::load(key.value());
+          if without_op_return_address && key.address.op_return() {
+            return false;
+          }
+          return true;
+        }
+        false
+      })
+      .collect::<Vec<_>>()
+      .len() as u64;
     let total_module_swap_pool_address_count = rtx
       .0
       .open_table(BRC20_MODULE_ADDRESS_LP_TOKEN_BALANCE)?
-      .len()?;
+      .range::<&[u8]>(..)?
+      .filter(|result| {
+        if let Ok((key, _)) = result {
+          let key: BRC20ModuleAddressLPTokenBalanceKey = DynamicEntry::load(key.value());
+          if without_op_return_address && key.address.op_return() {
+            return false;
+          }
+          return true;
+        }
+        false
+      })
+      .collect::<Vec<_>>()
+      .len() as u64;
     let total_module_swap_pool_pair_count =
       rtx.0.open_table(BRC20_MODULE_SWAP_POOL_BALANCES)?.len()?;
 

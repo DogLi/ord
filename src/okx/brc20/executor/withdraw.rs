@@ -248,7 +248,21 @@ impl BRC20ExecutionMessage {
         ));
       }
     };
-    if sender_module_balance.available_balance < amount.clone() {
+
+    log::debug!(
+      "brc20swap execute_transfer_withdraw sender_module_balance.pending_withdrawal_amount: {:?}",
+      sender_module_balance.pending_withdrawal_amount.clone()
+    );
+    sender_module_balance.pending_withdrawal_amount =
+      sender_module_balance.pending_withdrawal_amount - amount.clone();
+    context.update_brc20_module_address_token_balance(
+      &self.sender,
+      &withdraw.module,
+      &unique_lower_ticker,
+      sender_module_balance.clone(),
+    )?;
+
+    if sender_module_balance.available_balance.clone() < amount.clone() {
       log::debug!(
         "brc20swap error execute_transfer_withdraw amount invalid: {:?}, available_balance: {:?}",
         amount.clone(),
@@ -257,34 +271,8 @@ impl BRC20ExecutionMessage {
       return Err(ExecutionError::ExecutionFailed(
         BRC20Error::InsufficientWithdrawAmount(
           amount.clone(),
-          sender_module_balance.available_balance,
+          sender_module_balance.available_balance.clone(),
         ),
-      ));
-    }
-    log::debug!(
-      "brc20swap execute_transfer_withdraw sender_module_balance.pending_withdrawal_amount: {:?}",
-      sender_module_balance.pending_withdrawal_amount.clone()
-    );
-
-    sender_module_balance.pending_withdrawal_amount =
-      sender_module_balance.pending_withdrawal_amount - amount.clone();
-
-    context.update_brc20_module_address_token_balance(
-      &self.sender,
-      &withdraw.module,
-      &unique_lower_ticker,
-      sender_module_balance.clone(),
-    )?;
-
-    let available_balance = sender_module_balance.available_balance.clone();
-    if available_balance < amount.clone() {
-      log::debug!(
-        "brc20swap error execute_transfer_withdraw amount invalid: {:?}, available_balance: {:?}",
-        amount.clone(),
-        available_balance.clone()
-      );
-      return Err(ExecutionError::ExecutionFailed(
-        BRC20Error::InsufficientWithdrawAmount(amount.clone(), available_balance),
       ));
     }
     log::debug!(

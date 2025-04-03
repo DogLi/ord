@@ -50,9 +50,7 @@ impl BRC20ExecutionMessage {
 
     match &value.inscription_action {
       InscriptionAction::Created { sub_type, .. } => {
-        log::debug!("debugbrc20 sub_type {:?}", sub_type);
         if let Some(SubType::BRC20(brc20_operation)) = sub_type {
-          log::debug!("debugbrc20 brc20_operation {:?}", brc20_operation);
           build_message(brc20_operation.clone())
         } else {
           Ok(None)
@@ -60,10 +58,6 @@ impl BRC20ExecutionMessage {
       }
       InscriptionAction::Transferred => match Option::<TransferredInscription>::from(value) {
         Some(transferred_inscription) => {
-          log::debug!(
-            "debugbrc20 transferred_inscription {:?}",
-            transferred_inscription
-          );
           match transferred_inscription.extract_and_validate_transfer(context) {
             Ok(Some(brc20_operation)) => build_message(brc20_operation),
             Ok(None) => Ok(None),

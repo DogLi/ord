@@ -184,12 +184,19 @@ pub struct Brc20SwapInfo {
   pub all_modules: Vec<BRC20ModuleInfo>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Brc20SwapInfoParams {
+  pub without_op_return_address: bool,
+}
+
 pub(crate) async fn get_brc20_swap_info(
   Extension(index): Extension<Arc<Index>>,
+  Query(params): Query<Brc20SwapInfoParams>,
 ) -> Result<Json<Brc20SwapInfo>, ServerError> {
   let rtx = index.begin_read()?;
 
-  let swap_info = match Index::get_brc20_swap_info(&index, &rtx) {
+  let swap_info = match Index::get_brc20_swap_info(&index, &rtx, params.without_op_return_address) {
     Ok(swap_info) => swap_info,
     Err(e) => return Err(ServerError::Internal(e.into())),
   };
