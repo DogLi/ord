@@ -35,6 +35,7 @@ pub enum BRC20Operation {
   Deploy(Deploy),
   Mint {
     op: Mint,
+    signer: Option<UtxoAddress>,
     parent: Option<InscriptionId>,
   },
   InscribeTransfer {
@@ -171,6 +172,7 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
           }
           Some(BRC20Operation::Mint {
             op: mint,
+            signer,
             parent: self.parents.first().cloned(),
           })
         }
