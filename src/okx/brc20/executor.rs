@@ -105,9 +105,7 @@ impl BRC20ExecutionMessage {
         //         又碰到了一个非法的commit事件， height:188372，txid: b9dfbfb1dec1764a3870638faf173974ac4ca44e689cb82a1e2ae1d56610c4e8, inscription_id:f31d611021a5b26adda9a91ff2d1dacd52dda6a151147820f56ac9f7dae0a902i0
         //            invalid parent, 因为在188355高度碰到了非法的commit, 直接跳过了，db没有更新module的commit_id, 而188372这个height的commit事件的parent是188355的commit_id, 所以是非法的commit，直接跳到下一个合法的commit高度：189384
         if (matches!(self.operation, BRC20Operation::CreateModule(_)) && height > 115422)
-          || (matches!(self.operation, BRC20Operation::Withdraw(_)) && height > 159742)
           || matches!(self.operation, BRC20Operation::Commit(_))
-          || (matches!(self.operation, BRC20Operation::TransferWithdraw(_)) && height > 188516)
           || matches!(self.operation, BRC20Operation::TransferCommit(_))
         {
           panic!("brc20swap operation failed, ExecutionError{:?}", e);
