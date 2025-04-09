@@ -305,8 +305,8 @@ impl BRC20ExecutionMessage {
             &gas_ticker,
           ) {
             Ok(Some(token_balance)) => {
-              if token_balance.swap_account_balance.cmp(&gas_price_amt) != Ordering::Greater {
-                log::error!(
+              if token_balance.swap_account_balance.clone() < gas_price_amt.clone() {
+                log::debug!(
                   "brc20swap error execute_transfer_commit token_balance insufficient: {:?}, inscription_id: {:?}, token_balance: {:?}, gas_price_amt: {:?}",
                   self.txid,
                   self.inscription_id,
