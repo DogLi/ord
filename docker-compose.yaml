@@ -1,0 +1,31 @@
+version: '3'
+services:
+  fractal_ord_brc20_indexer:
+    container_name: fractal_ord_brc20_indexer
+    image: "ok-fractal-brc20"
+    ports:
+      - "7028:7001"
+    command: >
+      ord
+      --bitcoin-rpc-url http://fullnode-inner.okg.com/fractal/native/layer/rpc2
+      --save-inscription-receipts
+      --index-brc20
+      --index-addresses
+      --index-cache-size 40000000000
+      --commit-interval=200
+      --bitcoin-rpc-username fractaluser123!
+      --bitcoin-rpc-password fractaluser123!
+      --log-level info
+      --data-dir=/work/data/ord
+      --fractal-address-black-list bc1qw2jyn5v8yplc3k7cc5q4f5qmrg5s3kvcw2haag,bc1qtzxys06454geej0z8jcmryfrvlwwx9zp8dlhy6
+      --first-brc20-height 21000
+      --first-unisat-swap-height 21000
+      --unisat-api-key xxxxxx
+      #--disable-invalid-brc20-tracking
+      server
+      --http-port 7001
+      --enable-metrics
+    volumes:
+      - ./data:/work/data/ord:Z
+    #stop_signal: SIGNAL
+    #stop_grace_period: 20s
