@@ -146,9 +146,20 @@ impl BRC20ExecutionMessage {
         }
         module_info
       }
-      Ok(None) | Err(_) => {
-        log::debug!(
+      Ok(None) => {
+        log::error!(
           "brc20swap error execute_transfer_commit module_info not found: {:?}, inscription_id: {:?}, module_id: {:?}",
+          self.txid,
+          self.inscription_id,
+          module_id
+        );
+        return Err(ExecutionError::ExecutionFailed(BRC20Error::ModuleInvalid(
+          self.inscription_id.to_string(),
+        )));
+      },
+      Err(e) => {
+        log::error!(
+          "brc20swap error execute_transfer_commit module_info with error {e:?}, tx_id: {:?}, inscription_id: {:?}, module_id: {:?}",
           self.txid,
           self.inscription_id,
           module_id
@@ -161,8 +172,8 @@ impl BRC20ExecutionMessage {
 
     if commit.parent.clone() == module_info.chain_commit_id && module_info.chain_commit_id.is_some()
     {
-      log::debug!(
-        "brc20swap error execute_transfer_commit parent already sattled: {:?}, inscription_id: {:?}, parent: {:?}, chain_commit_id: {:?}",
+      log::error!(
+        "brc20swap error execute_transfer_commit parent already sattled: tx_id: {:?}, inscription_id: {:?}, parent: {:?}, chain_commit_id: {:?}",
         self.txid,
         self.inscription_id,
         commit.parent.clone(),
@@ -175,9 +186,8 @@ impl BRC20ExecutionMessage {
     if commit.parent.clone().unwrap_or_default()
       != module_info.commit_id.clone().unwrap_or_default()
     {
-      // TODO: remove panic after data verification
-      panic!(
-        "brc20swap error execute_transfer_commit parent invalid: {:?}, inscription_id: {:?}, parent: {:?}, commit_id: {:?}",
+      log::error!(
+        "brc20swap error execute_transfer_commit parent invalid: tx_id: {:?}, inscription_id: {:?}, parent: {:?}, commit_id: {:?}",
         self.txid,
         self.inscription_id,
         commit.parent.clone(),
@@ -196,8 +206,8 @@ impl BRC20ExecutionMessage {
     ) {
       Ok(result) => result,
       Err(_) => {
-        log::debug!(
-            "brc20swap error execute_transfer_commit gas_price_amt invaild: {:?}, inscription_id: {:?}, gas_ticker: {:?}, gas_price: {:?}",
+        log::error!(
+            "brc20swap error execute_transfer_commit gas_price_amt invaild: tx_id: {:?}, inscription_id: {:?}, gas_ticker: {:?}, gas_price: {:?}",
             self.txid,
             self.inscription_id,
             gas_ticker,
@@ -208,7 +218,7 @@ impl BRC20ExecutionMessage {
         ));
       }
     };
-    log::debug!(
+    log::info!(
       "brc20swap execute_transfer_commit gas_price_amt: {:?}",
       gas_price_amt,
     );
@@ -221,7 +231,7 @@ impl BRC20ExecutionMessage {
         ) {
           Ok(address) => address,
           Err(_) => {
-            log::debug!(
+            log::error!(
               "brc20swap error execute_transfer_commit address invalid: {:?}, inscription_id: {:?}, address: {:?}",
               self.txid,
               self.inscription_id,
@@ -241,7 +251,7 @@ impl BRC20ExecutionMessage {
           ) {
             Ok(Some(token_balance)) => {
               if token_balance.swap_account_balance.cmp(&gas_price_amt) != Ordering::Greater {
-                log::debug!(
+                log::error!(
                   "brc20swap error execute_transfer_commit token_balance insufficient: {:?}, inscription_id: {:?}, token_balance: {:?}, gas_price_amt: {:?}",
                   self.txid,
                   self.inscription_id,
@@ -258,12 +268,24 @@ impl BRC20ExecutionMessage {
               }
               token_balance
             }
-            Ok(None) | Err(_) => {
-              log::debug!(
+            Ok(None)=> {
+              log::error!(
                 "brc20swap error execute_transfer_commit token_balance not found: {:?}, inscription_id: {:?}, address: {:?}",
                 self.txid,
                 self.inscription_id,
                 item.address.clone().unwrap()
+              );
+              return Err(ExecutionError::ExecutionFailed(
+                BRC20Error::TokenBalanceInsufficient(
+                  self.inscription_id.to_string(),
+                  item.address.clone().unwrap(),
+                  module_info.gas_tick,
+                ),
+              ));
+            },
+            Err(e) => {
+              log::error!("brc20swap error execute_transfer_commit token_balance with error: {e:?}, tx_id: {:?}, inscription_id: {:?}, address:{:?}",
+                self.txid, self.inscription_id, item.address
               );
               return Err(ExecutionError::ExecutionFailed(
                 BRC20Error::TokenBalanceInsufficient(
@@ -360,10 +382,9 @@ impl BRC20ExecutionMessage {
           };
           match result {
             Ok(_) => {}
-            Err(_) => {
-              // TODO: remove panic after data verification
-              panic!(
-                "brc20swap error execute_transfer_commit function failed: {:?}, inscription_id: {:?}, function: {:?}, item: {:?}",
+            Err(e) => {
+              log::error!(
+                "brc20swap error execute_transfer_commit function failed with error {e:?}: tx_id: {:?}, inscription_id: {:?}, function: {:?}, item: {:?}",
                 self.txid,
                 self.inscription_id,
                 item.function.clone(),
@@ -372,7 +393,7 @@ impl BRC20ExecutionMessage {
             }
           }
         } else {
-          log::debug!(
+          log::error!(
             "brc20swap error execute_transfer_commit invalid function, inscription_id: {:?}, function: {:?}",
             self.inscription_id,
             item.function.clone()
