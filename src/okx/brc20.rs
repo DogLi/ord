@@ -24,7 +24,6 @@ pub(crate) use self::{
   executor::BRC20ExecutionMessage,
   ticker::{BRC20LowerCaseTicker, BRC20Ticker},
 };
-const SELF_ISSUANCE_TICKER_LENGTH: usize = 5;
 #[derive(Debug, Clone)]
 pub enum BRC20Operation {
   Deploy(Deploy),
@@ -108,32 +107,7 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
       self.pre_jubilant_curse_reason,
     ) {
       match self.inscription.extract_brc20_operation() {
-        Ok(RawOperation::Deploy(mut deploy)) => {
-          // Filter out invalid deployments with a 5-byte ticker.
-          // proposal for issuance self mint token.
-          // https://l1f.discourse.group/t/brc-20-proposal-for-issuance-and-burn-enhancements-brc20-ip-1/621
-          if deploy.tick.len() == SELF_ISSUANCE_TICKER_LENGTH {
-            if !deploy.self_mint.unwrap_or_default() {
-              log::debug!(
-                "Self mint is not enabled for inscription: {} with ticker length: {}",
-                self.inscription_id,
-                SELF_ISSUANCE_TICKER_LENGTH
-              );
-              return None;
-            }
-            if height < HardForks::self_issuance_activation_height(&chain) {
-              log::debug!(
-                "Self mint is not activated at height: {} for inscription: {}",
-                height,
-                self.inscription_id
-              );
-              return None;
-            }
-          } else {
-            deploy.self_mint = None;
-          }
-          Some(BRC20Operation::Deploy(deploy))
-        }
+        Ok(RawOperation::Deploy(deploy)) => Some(BRC20Operation::Deploy(deploy)),
         Ok(RawOperation::Mint(mint)) => Some(BRC20Operation::Mint {
           op: mint,
           parent: self.parents.first().cloned(),
