@@ -28,15 +28,14 @@ impl FromStr for BRC20Ticker {
   type Err = Error;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let bytes = s.as_bytes();
-    let length = bytes.len();
-
-    // BRC20Ticker names on the Bitcoin mainnet will be limited to 4 - 5 bytes.
-    if !(Self::MIN_SIZE..=Self::MAX_SIZE).contains(&length) {
-      return Err(Error::Range);
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(^[0-9A-Za-z_]{6,12}$)").unwrap());
+    let name = RE.find(s);
+    if name.is_some() {
+      let bytes = s.as_bytes();
+      Ok(Self(bytes.into()))
+    } else {
+      Err(Error::InvalidTicker(s.to_string()))
     }
-
-    Ok(Self(bytes.into()))
   }
 }
 
@@ -58,12 +57,14 @@ impl Display for BRC20LowerCaseTicker {
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum Error {
   Range,
+  InvalidTicker(String),
 }
 
 impl Display for Error {
   fn fmt(&self, f: &mut Formatter) -> fmt::Result {
     match self {
       Self::Range => write!(f, "ticker name out of range"),
+      Self::InvalidTicker(ticker) => write!(f, "invalid ticker {}", ticker),
     }
   }
 }
