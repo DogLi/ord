@@ -108,7 +108,8 @@ impl BRC20ExecutionMessage {
           || matches!(self.operation, BRC20Operation::Commit(_))
           || matches!(self.operation, BRC20Operation::TransferCommit(_))
         {
-          panic!("brc20swap operation failed, ExecutionError{:?}", e);
+          log::error!("xxxxxx----->brc20swap operation failed, ExecutionError{:?}", e);
+          return Err(e.into())
         }
         Ok(BRC20Receipt {
           // Handle specific execution failure
@@ -137,7 +138,7 @@ impl BRC20ExecutionMessage {
           || matches!(self.operation, BRC20Operation::TransferWithdraw(_))
           || matches!(self.operation, BRC20Operation::TransferCommit(_))
         {
-          panic!("brc20swap operation failed, {:?}", e);
+          log::error!("brc20swap operation failed, {:?}", e);
         }
         Err(e.into())
       }
