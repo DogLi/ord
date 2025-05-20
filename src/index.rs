@@ -365,6 +365,26 @@ impl Index {
           }
         }
 
+        let mut tx = database.begin_write()?;
+        tx.set_durability(durability);
+        tx.set_quick_repair(true);
+        {
+          let mut statistics = tx.open_table(STATISTIC_TO_COUNT)?;
+
+          Self::set_statistic(
+            &mut statistics,
+            Statistic::OkxSaveInscriptionReceipts,
+            u64::from(settings.save_inscription_receipts()),
+          )?;
+
+          log::info!(
+            "setting inscription receipts statistic to {}",
+            settings.save_inscription_receipts()
+          );
+        }
+
+        tx.commit()?;
+
         database
       }
       Err(DatabaseError::Storage(StorageError::Io(error)))
@@ -577,6 +597,10 @@ impl Index {
 
       save_inscription_receipts =
         Self::is_statistic_set(&statistics, Statistic::OkxSaveInscriptionReceipts)?;
+      log::info!(
+        "Indexing save_inscription_receipts: {}",
+        save_inscription_receipts
+      );
     }
 
     let genesis_block_coinbase_transaction =
