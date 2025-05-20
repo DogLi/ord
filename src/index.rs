@@ -575,8 +575,7 @@ impl Index {
       index_bitmap = Self::is_statistic_set(&statistics, Statistic::OkxIndexBitmap)?;
       index_btc_domain = Self::is_statistic_set(&statistics, Statistic::OkxIndexBTCDomain)?;
 
-      save_inscription_receipts =
-        Self::is_statistic_set(&statistics, Statistic::OkxSaveInscriptionReceipts)?;
+      save_inscription_receipts = settings.save_inscription_receipts();
     }
 
     let genesis_block_coinbase_transaction =
