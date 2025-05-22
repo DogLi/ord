@@ -1,4 +1,5 @@
 use super::{brc20_decimal::Brc20Decimal, *};
+use bigdecimal::ParseBigDecimalError;
 use event::{BRC20Event, BRC20OpType};
 
 pub type BRC20BalanceValue = [u8];
@@ -97,6 +98,22 @@ pub struct BRC20ModuleInfo {
 
   pub chain_commit_id: Option<String>,
   pub commit_id: Option<String>,
+}
+
+impl BRC20ModuleInfo {
+  // New feature: allow the fee rate to be replaced with the event value
+  pub fn replace_fee_rate_with_event_value(&self, specified: Option<String>) -> Result<Brc20Decimal, ParseBigDecimalError> {
+    if specified.is_none() {
+      return Ok(self.fee_rate_swap.clone());
+    }
+
+    let specified = specified.unwrap();
+    if specified.is_empty() {
+      return Ok(self.fee_rate_swap.clone());
+    }
+
+    Brc20Decimal::from_str_with_scale(&specified, 3)
+  }
 }
 
 pub type BRC20ModuleAddressTokenBalanceKeyValue = [u8];
@@ -387,5 +404,31 @@ mod tests {
 
     let value = module_info.store();
     assert_eq!(module_info, BRC20ModuleInfo::load(&value));
+  }
+
+  #[test]
+  fn test_replace_fee_rate_with_event_value() {
+    let module_info = BRC20ModuleInfo {
+      id: "ID".to_string(),
+      name: "swap".to_string(),
+      deployer_pk_script: "bc1qtaf86fqf9hv7r76927fjpxc0mpvedgyp7zjneu".to_string(),
+      sequencer_pk_script: "bc1qtaf86fqf9hv7r76927fjpxc0mpvedgyp7zjneu".to_string(),
+      gas_to_pk_script: "bc1qam880mjcygnkjny5km39vut89vsnq7yun4nr73".to_string(),
+      lp_fee_pk_script: "bc1qaejzncrr87pr7azn9fadwa79cp42acsxeygert".to_string(),
+      fee_rate_swap: Brc20Decimal::from_str_with_scale("0.001", 3).unwrap(),
+      gas_tick: "bSATS_".to_string(),
+      chain_commit_id: Some("chain_commit_id".to_string()),
+      commit_id: Some("commit_id".to_string()),
+    };
+
+    let fee_rate_replaced = match module_info.replace_fee_rate_with_event_value(None) {
+      Ok(fee_rate_replaced) => fee_rate_replaced,
+      Err(e) => {
+        println!("error: {}", e);
+        return;
+      }
+    };
+    println!("fee_rate_swap: {}", module_info.fee_rate_swap);
+    println!("fee_rate_replaced: {}", fee_rate_replaced);
   }
 }

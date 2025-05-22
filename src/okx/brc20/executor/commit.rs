@@ -224,6 +224,13 @@ impl BRC20ExecutionMessage {
         )));
       }
     };
+    let fee_rate_replaced = match module_info.replace_fee_rate_with_event_value(commit.swap_fee_rate.clone()) {
+      Ok(fee_rate_replaced) => fee_rate_replaced,
+      Err(e) => {
+        log::error!("brc20swap error execute_transfer_commit fee_rate_replaced with error: {}, tx_id: {:?}, inscription_id: {:?}, event_swap_fee_rate: {:?}", e, self.txid, self.inscription_id, commit.swap_fee_rate.clone());
+        return Err(ExecutionError::ExecutionFailed(BRC20Error::ModuleInvalid(self.inscription_id.to_string())));
+      }
+    };
 
     if commit.parent.clone() == module_info.chain_commit_id && module_info.chain_commit_id.is_some()
     {
@@ -397,13 +404,13 @@ impl BRC20ExecutionMessage {
               item.handle_deploy_pool(&module_id.to_string(), context)
             }
             BRC20_SWAP_FUNCTION_ADD_LIQ => {
-              item.handle_add_liq(&index.chain(), &module_id.to_string(), context)
+              item.handle_add_liq(&index.chain(), &module_id.to_string(), context, fee_rate_replaced.clone())
             }
             BRC20_SWAP_FUNCTION_REMOVE_LIQ => {
-              item.handle_remove_liq(&index.chain(), &module_id.to_string(), context)
+              item.handle_remove_liq(&index.chain(), &module_id.to_string(), context, fee_rate_replaced.clone())
             }
             BRC20_SWAP_FUNCTION_SWAP => {
-              item.handle_swap(&index.chain(), &module_id.to_string(), context)
+              item.handle_swap(&index.chain(), &module_id.to_string(), context, fee_rate_replaced.clone())
             }
             BRC20_SWAP_FUNCTION_SEND => {
               item.handle_send(&index.chain(), &module_id.to_string(), context)

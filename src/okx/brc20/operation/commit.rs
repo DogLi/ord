@@ -40,6 +40,9 @@ pub struct Commit {
 
   #[serde(rename = "data", skip_serializing_if = "Option::is_none")]
   pub data: Option<Vec<SwapFunctionData>>,
+
+  #[serde(rename = "swap_fee_rate")]
+  pub swap_fee_rate: Option<String>,
 }
 
 pub type CommitValue = [u8];

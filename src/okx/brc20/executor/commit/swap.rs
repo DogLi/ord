@@ -15,6 +15,7 @@ impl SwapFunctionData {
     chain: &Chain,
     module_id: &String,
     context: &mut TableContext,
+    fee_rate: Brc20Decimal,
   ) -> Result<(), ExecutionError> {
     log::info!("brc20swap handle_swap: {:?}", self);
 
@@ -152,18 +153,18 @@ impl SwapFunctionData {
           ));
         }
       };
-    let module_info = match context.load_brc20_module_info(&module_id)? {
-      Some(module_info) => module_info,
-      None => {
-        log::debug!(
-          "brc20swap error handle_swap: module_id not found: {}",
-          module_id.clone(),
-        );
-        return Err(ExecutionError::ExecutionFailed(
-          BRC20Error::ModuleNotExists(module_id.clone()),
-        ));
-      }
-    };
+    // let module_info = match context.load_brc20_module_info(&module_id)? {
+    //   Some(module_info) => module_info,
+    //   None => {
+    //     log::debug!(
+    //       "brc20swap error handle_swap: module_id not found: {}",
+    //       module_id.clone(),
+    //     );
+    //     return Err(ExecutionError::ExecutionFailed(
+    //       BRC20Error::ModuleNotExists(module_id.clone()),
+    //     ));
+    //   }
+    // };
 
     // token order
     let token_in_idx: usize;
@@ -187,11 +188,11 @@ impl SwapFunctionData {
     let amount_in: Brc20Decimal;
     let amount_out: Brc20Decimal;
     if direction == DIRECTION_EXACT_IN {
-      if module_info.fee_rate_swap.sign() > 0 {
+      if fee_rate.sign() > 0 {
         // with fee
         let amount_in_with_fee = token_in_amt
           .clone()
-          .mul(Brc20Decimal::from_u128(1000, 3).unwrap() - module_info.fee_rate_swap.clone());
+          .mul(Brc20Decimal::from_u128(1000, 3).unwrap() - fee_rate.clone());
         amount_out = pool_balance.tick_balance[token_out_idx]
           .clone()
           .mul(amount_in_with_fee.clone())
@@ -230,7 +231,7 @@ impl SwapFunctionData {
       }
       amount_in = token_in_amt.clone();
     } else {
-      if module_info.fee_rate_swap.sign() > 0 {
+      if fee_rate.sign() > 0 {
         // with fee
         amount_in = pool_balance.tick_balance[token_in_idx]
           .clone()
@@ -246,7 +247,7 @@ impl SwapFunctionData {
               .mul(
                 Brc20Decimal::from_u128(1000, 3)
                   .unwrap()
-                  .sub(module_info.fee_rate_swap.clone()),
+                  .sub(fee_rate.clone()),
               ),
           )
           .add(Brc20Decimal::from_u128(1, token_in_amt.clone().get_precision()).unwrap());

@@ -18,6 +18,7 @@ impl SwapFunctionData {
     chain: &Chain,
     module_id: &String,
     context: &mut TableContext,
+    fee_rate: Brc20Decimal,
   ) -> Result<(), ExecutionError> {
     log::info!("brc20swap handle_add_liq: {:?}", self);
 
@@ -184,7 +185,7 @@ impl SwapFunctionData {
         .clone()
         .sub(Brc20Decimal::from_u128(1000, 18).unwrap());
     } else {
-      if module_info.fee_rate_swap.sign() > 0 {
+      if fee_rate.sign() > 0 {
         // lp = (poolLp * (rootK - rootKLast)) / (rootK * 5 + rootKLast)
         let root_k = pool_balance.tick_balance[token_0_idx]
           .clone()
