@@ -31,6 +31,8 @@ pub const BRC20_SWAP_FUNCTION_LOCK: &str = "lock";
 pub const BRC20_SWAP_FUNCTION_UNLOCK: &str = "unlock";
 pub const BRC20_SWAP_FUNCTION_DECREASE_APPROVAL: &str = "decreaseApproval";
 
+pub const SKIP_INVALID_COMMIT_FUNC_FROM_HEIGHT: u32 = 1000000;
+
 pub const ZERO_ADDRESS_PKSCRIPT: &str = "\x6a\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 impl BRC20ExecutionMessage {
@@ -109,6 +111,7 @@ impl BRC20ExecutionMessage {
     inscription_id: &InscriptionId,
     index: &Index,
     context: &mut TableContext,
+    height: u32,
   ) -> Result<BRC20Receipt, ExecutionError> {
     log::info!(
       "brc20swap execute_transfer_commit: {:?}, inscription_id: {:?}",
@@ -434,12 +437,15 @@ impl BRC20ExecutionMessage {
                 self.inscription_id,
                 function.to_string()
               );
-              return Err(ExecutionError::ExecutionFailed(
-                BRC20Error::CommitInvalidFunction(
-                  self.inscription_id.to_string(),
-                  function.to_string(),
-                ),
-              ));
+              if height < SKIP_INVALID_COMMIT_FUNC_FROM_HEIGHT {
+                return Err(ExecutionError::ExecutionFailed(
+                  BRC20Error::CommitInvalidFunction(
+                    self.inscription_id.to_string(),
+                    function.to_string(),
+                  ),
+                ));
+              }
+              Ok(())
             }
           };
           match result {
@@ -452,9 +458,11 @@ impl BRC20ExecutionMessage {
                 item.function.clone(),
                 item.clone()
               );
-              return Err(ExecutionError::ExecutionFailed(
-                BRC20Error::CommitHandleFunctionFailed(self.inscription_id.to_string()),
-              ));
+              if height < SKIP_INVALID_COMMIT_FUNC_FROM_HEIGHT {
+                return Err(ExecutionError::ExecutionFailed(
+                  BRC20Error::CommitHandleFunctionFailed(self.inscription_id.to_string()),
+                ));
+              }
             }
           }
         } else {
@@ -463,9 +471,11 @@ impl BRC20ExecutionMessage {
             self.inscription_id,
             item.function.clone()
           );
-          return Err(ExecutionError::ExecutionFailed(
-            BRC20Error::CommitInvalidFunction(self.inscription_id.to_string(), String::new()),
-          ));
+          if height < SKIP_INVALID_COMMIT_FUNC_FROM_HEIGHT {
+            return Err(ExecutionError::ExecutionFailed(
+              BRC20Error::CommitInvalidFunction(self.inscription_id.to_string(), String::new()),
+            ));
+          }
         }
       }
     }

@@ -90,7 +90,7 @@ impl BRC20ExecutionMessage {
       BRC20Operation::Commit(..) => self.execute_inscribe_commit(index, context),
       BRC20Operation::TransferWithdraw(..) => self.execute_transfer_withdraw(index, context),
       BRC20Operation::TransferCommit(..) => {
-        self.execute_transfer_commit(&self.inscription_id, index, context)
+        self.execute_transfer_commit(&self.inscription_id, index, context, height)
       }
     };
 
