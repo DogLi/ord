@@ -108,7 +108,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
           inscription_id: event.inscription_id,
           inscription_number: event.inscription_number,
           satpoint: event.new_satpoint,
-          amount: withdraw_event.amount.to_string(),
+          amount: withdraw_event.amount.to_string().replace(".", ""), // 直接替换掉小数点，小数点之后的位数取决于创建tick时指定的decimal
           from: event.sender.into(),
           to: event.receiver.into(),
           valid: true,
@@ -124,7 +124,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
           inscription_number: event.inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
-          amount: withdraw_event.amount.to_string(),
+          amount: withdraw_event.amount.to_string().replace(".", ""), // 直接替换掉小数点，小数点之后的位数取决于创建tick时指定的decimal
           from: event.sender.into(),
           to: event.receiver.into(),
           valid: true,
@@ -265,6 +265,7 @@ pub struct ApiTransferEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiCreateModuleEvent {
+  #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
   pub inscription_number: i32,
@@ -291,6 +292,7 @@ pub struct ApiCreateModuleInit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiInscribeWithdrawEvent {
+  #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
@@ -307,6 +309,7 @@ pub struct ApiInscribeWithdrawEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiTransferWithdrawEvent {
+  #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
@@ -324,6 +327,7 @@ pub struct ApiTransferWithdrawEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiInscribeCommitEvent {
+  #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
   pub inscription_number: i32,
@@ -338,6 +342,7 @@ pub struct ApiInscribeCommitEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiTransferCommitEvent {
+  #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
   pub inscription_number: i32,
