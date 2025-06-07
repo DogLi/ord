@@ -51,11 +51,14 @@ impl OkxUpdater {
       self.height,
       timestamp(self.timestamp.into()),
       block_data.txdata.len(),
-      bundle_messages_map.len()
+      bundle_messages_map.len(),
     );
 
     let mut inscription_id_list = vec![];
-    for (_, msg_list) in bundle_messages_map.iter() {
+    for (tx_id, msg_list) in bundle_messages_map.iter() {
+      if msg_list.len() > 50000 {
+        log::warn!("[OKX] height {} Bundle message list is too long, tx:{}, len:{}", self.height, tx_id, msg_list.len());
+      }
       let m = msg_list.iter().map(|m| m.inscription_id.clone());
       inscription_id_list.extend(m);
     }
@@ -90,10 +93,10 @@ impl OkxUpdater {
 
           context.insert_brc20_tx_receipts(txid, brc20_receipts)?;
           log::debug!(
-            "[OKX] Saved {} BRC20 receipts for transaction {} in {} ms",
+            "[OKX] Saved {} BRC20 receipts for transaction {} in {:?}",
             brc20_receipts_count,
             txid,
-            (Instant::now() - start_insert_time).as_millis()
+            start_insert_time.elapsed()
           );
         }
         if index.has_inscription_receipts() {
@@ -104,12 +107,19 @@ impl OkxUpdater {
             .map(Into::into)
             .collect();
           let start_insert_time = Instant::now();
-          context.insert_inscription_tx_receipts(txid, inscription_receipts)?;
-          log::debug!(
-            "[OKX] Saved {} inscription receipts for transaction {} in {} ms",
+          log::info!(
+            "[OKX] height {} start to {} inscription receipts for transaction {}",
+            self.height,
             transaction_bundle_messages_count,
             txid,
-            (Instant::now() - start_insert_time).as_millis()
+          );
+          context.insert_inscription_tx_receipts(txid, inscription_receipts)?;
+          log::info!(
+            "[OKX] height {} Saved {} inscription receipts for transaction {} in {:?}",
+            self.height,
+            transaction_bundle_messages_count,
+            txid,
+            start_insert_time.elapsed()
           );
         }
       }
