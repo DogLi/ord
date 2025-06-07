@@ -214,7 +214,7 @@ impl BRC20ExecutionMessage {
         return Err(ExecutionError::ExecutionFailed(BRC20Error::ModuleInvalid(
           self.inscription_id.to_string(),
         )));
-      },
+      }
       Err(e) => {
         log::error!(
           "brc20swap error execute_transfer_commit module_info with error {e:?}, tx_id: {:?}, inscription_id: {:?}, module_id: {:?}",
@@ -227,11 +227,15 @@ impl BRC20ExecutionMessage {
         )));
       }
     };
-    let fee_rate_replaced = match module_info.replace_fee_rate_with_event_value(commit.swap_fee_rate.clone()) {
+    let fee_rate_replaced = match module_info
+      .replace_fee_rate_with_event_value(commit.swap_fee_rate.clone())
+    {
       Ok(fee_rate_replaced) => fee_rate_replaced,
       Err(e) => {
         log::error!("brc20swap error execute_transfer_commit fee_rate_replaced with error: {}, tx_id: {:?}, inscription_id: {:?}, event_swap_fee_rate: {:?}", e, self.txid, self.inscription_id, commit.swap_fee_rate.clone());
-        return Err(ExecutionError::ExecutionFailed(BRC20Error::ModuleInvalid(self.inscription_id.to_string())));
+        return Err(ExecutionError::ExecutionFailed(BRC20Error::ModuleInvalid(
+          self.inscription_id.to_string(),
+        )));
       }
     };
 
@@ -333,7 +337,7 @@ impl BRC20ExecutionMessage {
               }
               token_balance
             }
-            Ok(None)=> {
+            Ok(None) => {
               log::error!(
                 "brc20swap error execute_transfer_commit token_balance not found: {:?}, inscription_id: {:?}, address: {:?}",
                 self.txid,
@@ -347,7 +351,7 @@ impl BRC20ExecutionMessage {
                   module_info.gas_tick,
                 ),
               ));
-            },
+            }
             Err(e) => {
               log::error!("brc20swap error execute_transfer_commit token_balance with error: {e:?}, tx_id: {:?}, inscription_id: {:?}, address:{:?}",
                 self.txid, self.inscription_id, item.address
@@ -406,15 +410,24 @@ impl BRC20ExecutionMessage {
             BRC20_SWAP_FUNCTION_DEPLOY_POOL => {
               item.handle_deploy_pool(&module_id.to_string(), context)
             }
-            BRC20_SWAP_FUNCTION_ADD_LIQ => {
-              item.handle_add_liq(&index.chain(), &module_id.to_string(), context, fee_rate_replaced.clone())
-            }
-            BRC20_SWAP_FUNCTION_REMOVE_LIQ => {
-              item.handle_remove_liq(&index.chain(), &module_id.to_string(), context, fee_rate_replaced.clone())
-            }
-            BRC20_SWAP_FUNCTION_SWAP => {
-              item.handle_swap(&index.chain(), &module_id.to_string(), context, fee_rate_replaced.clone())
-            }
+            BRC20_SWAP_FUNCTION_ADD_LIQ => item.handle_add_liq(
+              &index.chain(),
+              &module_id.to_string(),
+              context,
+              fee_rate_replaced.clone(),
+            ),
+            BRC20_SWAP_FUNCTION_REMOVE_LIQ => item.handle_remove_liq(
+              &index.chain(),
+              &module_id.to_string(),
+              context,
+              fee_rate_replaced.clone(),
+            ),
+            BRC20_SWAP_FUNCTION_SWAP => item.handle_swap(
+              &index.chain(),
+              &module_id.to_string(),
+              context,
+              fee_rate_replaced.clone(),
+            ),
             BRC20_SWAP_FUNCTION_SEND => {
               item.handle_send(&index.chain(), &module_id.to_string(), context)
             }

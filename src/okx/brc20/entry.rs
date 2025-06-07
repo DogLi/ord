@@ -102,7 +102,10 @@ pub struct BRC20ModuleInfo {
 
 impl BRC20ModuleInfo {
   // New feature: allow the fee rate to be replaced with the event value
-  pub fn replace_fee_rate_with_event_value(&self, specified: Option<String>) -> Result<Brc20Decimal, ParseBigDecimalError> {
+  pub fn replace_fee_rate_with_event_value(
+    &self,
+    specified: Option<String>,
+  ) -> Result<Brc20Decimal, ParseBigDecimalError> {
     if specified.is_none() {
       return Ok(self.fee_rate_swap.clone());
     }

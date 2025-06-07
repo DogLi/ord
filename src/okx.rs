@@ -57,7 +57,12 @@ impl OkxUpdater {
     let mut inscription_id_list = vec![];
     for (tx_id, msg_list) in bundle_messages_map.iter() {
       if msg_list.len() > 50000 {
-        log::warn!("[OKX] height {} Bundle message list is too long, tx:{}, len:{}", self.height, tx_id, msg_list.len());
+        log::warn!(
+          "[OKX] height {} Bundle message list is too long, tx:{}, len:{}",
+          self.height,
+          tx_id,
+          msg_list.len()
+        );
       }
       let m = msg_list.iter().map(|m| m.inscription_id.clone());
       inscription_id_list.extend(m);
@@ -113,14 +118,26 @@ impl OkxUpdater {
             transaction_bundle_messages_count,
             txid,
           );
-          context.insert_inscription_tx_receipts(txid, inscription_receipts)?;
-          log::info!(
-            "[OKX] height {} Saved {} inscription receipts for transaction {} in {:?}",
-            self.height,
-            transaction_bundle_messages_count,
-            txid,
-            start_insert_time.elapsed()
-          );
+          // 过滤 transaction_bundle_messages_count 太大的txid
+          let bad_txid_list =
+            ["cd786bc2cb35d37e098d4ef0d582a8277f042c839228c29b0e771617080f5660".to_string()];
+          let txid_str = format!("{}", txid);
+          if !bad_txid_list.contains(&txid_str) {
+            log::warn!(
+              "[OKX] height {} skip bad transaction id: {}",
+              self.height,
+              txid
+            );
+          } else {
+            context.insert_inscription_tx_receipts(txid, inscription_receipts)?;
+            log::info!(
+              "[OKX] height {} Saved {} inscription receipts for transaction {} in {:?}",
+              self.height,
+              transaction_bundle_messages_count,
+              txid,
+              start_insert_time.elapsed()
+            );
+          }
         }
       }
     }
