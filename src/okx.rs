@@ -119,15 +119,14 @@ impl OkxUpdater {
             txid,
           );
           // 过滤 transaction_bundle_messages_count 太大的txid
-          let bad_txid_list =
-            ["cd786bc2cb35d37e098d4ef0d582a8277f042c839228c29b0e771617080f5660".to_string()];
-          let txid_str = format!("{}", txid);
-          if !bad_txid_list.contains(&txid_str) {
+          if transaction_bundle_messages_count > 1_000_000 {
             log::warn!(
-              "[OKX] height {} skip bad transaction id: {}",
+              "[OKX] height {} skip bad tx_id: {}, transaction_bundle_messages_count: {}",
               self.height,
-              txid
+              txid,
+              transaction_bundle_messages_count
             );
+            continue;
           } else {
             context.insert_inscription_tx_receipts(txid, inscription_receipts)?;
             log::info!(
