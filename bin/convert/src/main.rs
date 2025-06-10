@@ -45,10 +45,11 @@ where
 
 fn convert_inscription_table(db: &Database, batch_size: usize) -> anyhow::Result<()> {
   let mut processed_count = 0;
-  let total_count = get_data_len(db, INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
-  log::info!("Total inscription number count: {}", total_count);
+  // let total_count = get_data_len(db, INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
+  // log::info!("Total inscription number count: {}", total_count);
 
   loop {
+    let now = Instant::now();
     let tx = db.begin_write()?;
     {
       let mut table_old = tx.open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
@@ -73,10 +74,9 @@ fn convert_inscription_table(db: &Database, batch_size: usize) -> anyhow::Result
     }
     tx.commit()?;
     log::info!(
-      "迁移数据 {}w, total:{}w --> {}%",
+      "number 迁移数据 {}w, batch size: {batch_size}, used: {:?}",
       processed_count / 10000,
-      total_count / 10000,
-      (processed_count as f64 / total_count as f64) * 100.0
+      now.elapsed()
     );
   }
   Ok(())
@@ -84,10 +84,11 @@ fn convert_inscription_table(db: &Database, batch_size: usize) -> anyhow::Result
 
 fn convert_entry_table(db: &Database, batch_size: usize) -> anyhow::Result<()> {
   let mut processed_count = 0;
-  let total_count = get_data_len(db, SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
-  log::info!("Total entry count: {}", total_count);
+  // let total_count = get_data_len(db, SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+  // log::info!("Total entry count: {}", total_count);
 
   loop {
+    let now = Instant::now();
     let tx = db.begin_write()?;
     {
       let mut table_old = tx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
@@ -113,10 +114,9 @@ fn convert_entry_table(db: &Database, batch_size: usize) -> anyhow::Result<()> {
     }
     tx.commit()?;
     log::info!(
-      "entry 迁移数据 {}w, total:{}w --> {}%",
+      "entry 迁移数据 {}w, batch size: {batch_size}, used: {:?}",
       processed_count / 10000,
-      total_count / 10000,
-      (processed_count as f64 / total_count as f64) * 100.0
+      now.elapsed()
     );
   }
   Ok(())
@@ -133,7 +133,7 @@ fn main() {
     log::warn!("使用方法:\n./convert 1: 转换 inscription number 表\n./convert 2: 转换 convert 表");
     return;
   }
-  let batch_size = 50_000;
+  let batch_size = 500_000;
   let path = "/work/data/ord";
   let database = Database::builder()
     .create(&path)
