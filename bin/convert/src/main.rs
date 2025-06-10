@@ -133,7 +133,7 @@ fn main() {
     log::warn!("使用方法:\n./convert 1: 转换 inscription number 表\n./convert 2: 转换 convert 表");
     return;
   }
-  let batch_size = 500_000;
+  let batch_size = 100_000;
   let path = "/work/data/ord";
   let database = Database::builder()
     .create(&path)
