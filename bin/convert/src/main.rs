@@ -36,12 +36,17 @@ where
   let batch_iter = table_old.iter();
   let now = Instant::now();
   log::info!("开始获取表大小...");
+  let mut now = Instant::now();
   loop {
     let batch = batch_iter.iter().take(batch_size).count();
     if batch == 0 {
       break;
     }
     total_count += batch_size;
+    if total_count % 1000000 == 0 {
+      log::info!("获取表大小, 当前数据: {}w, used: {:?}", total_count / 1000000, now.elapsed());
+      now = Instant::now();
+    }
   }
   log::info!(
     "获取表大小结束，共 {}w 数据， 用时: {:?}",
