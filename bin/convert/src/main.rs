@@ -21,44 +21,31 @@ type InscriptionEntryValue2 = (
 );
 
 /// 获取old table中多少条数据
-fn get_data_len<K, V>(
-  db: &Database,
-  table_name: TableDefinition<K, V>,
-  batch_size: usize,
-) -> anyhow::Result<usize>
+fn get_data_len<K, V>(db: &Database, table_name: TableDefinition<K, V>) -> anyhow::Result<usize>
 where
   K: redb::Key,
   V: redb::Value,
 {
   let txn = db.begin_read()?;
   let table_old = txn.open_table(table_name)?;
-  let mut total_count = 0;
   let batch_iter = table_old.iter();
-  let now = Instant::now();
   log::info!("开始获取表大小...");
-  let mut now = Instant::now();
-  loop {
-    let batch = batch_iter.iter().take(batch_size).count();
-    if batch == 0 {
-      break;
-    }
-    total_count += batch_size;
-    if total_count % 1000000 == 0 {
-      log::info!("获取表大小, 当前数据: {}w, used: {:?}", total_count / 1000000, now.elapsed());
-      now = Instant::now();
-    }
-  }
+  let now = Instant::now();
+  let total_count = batch_iter.iter().count();
   log::info!(
     "获取表大小结束，共 {}w 数据， 用时: {:?}",
     total_count / 10000,
     now.elapsed()
   );
+  if total_count == 0 {
+    return Ok(1);
+  }
   Ok(total_count)
 }
 
 fn convert_inscription_table(db: &Database, batch_size: usize) -> anyhow::Result<()> {
   let mut processed_count = 0;
-  let total_count = get_data_len(db, INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER, batch_size)?;
+  let total_count = get_data_len(db, INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
   log::info!("Total inscription number count: {}", total_count);
 
   loop {
@@ -97,7 +84,7 @@ fn convert_inscription_table(db: &Database, batch_size: usize) -> anyhow::Result
 
 fn convert_entry_table(db: &Database, batch_size: usize) -> anyhow::Result<()> {
   let mut processed_count = 0;
-  let total_count = get_data_len(db, SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY, batch_size)?;
+  let total_count = get_data_len(db, SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
   log::info!("Total entry count: {}", total_count);
 
   loop {
@@ -146,7 +133,7 @@ fn main() {
     log::warn!("使用方法:\n./convert 1: 转换 inscription number 表\n./convert 2: 转换 convert 表");
     return;
   }
-  let batch_size = 10_000;
+  let batch_size = 50_000;
   let path = "/work/data/ord";
   let database = Database::builder()
     .create(&path)
