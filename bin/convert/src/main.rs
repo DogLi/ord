@@ -129,11 +129,11 @@ fn main() {
     .try_init();
   // 获取命令行参数迭代器
   let args: Vec<String> = std::env::args().collect();
-  if args.len() != 2 {
-    log::warn!("使用方法:\n./convert 1: 转换 inscription number 表\n./convert 2: 转换 convert 表");
+  if args.len() != 3 {
+    log::warn!("使用方法:\n./convert 1 <batch_size>: 转换 inscription number 表\n./convert 2 <batch_size>: 转换 convert 表");
     return;
   }
-  let batch_size = 100_000;
+  let batch_size = args[2].parse::<usize>().expect("batch_size 必须是数字");
   let path = "/work/data/ord";
   let database = Database::builder()
     .create(&path)
