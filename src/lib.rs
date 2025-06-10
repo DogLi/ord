@@ -94,7 +94,7 @@ use {
 pub use self::{
   chain::Chain,
   fee_rate::FeeRate,
-  index::{Index, RuneEntry},
+  index::{Index, RuneEntry, entry::InscriptionEntryValue, INSCRIPTION_ID_TO_SEQUENCE_NUMBER, SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY},
   inscriptions::{Envelope, Inscription, InscriptionId},
   object::Object,
   options::Options,

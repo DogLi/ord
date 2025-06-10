@@ -300,7 +300,7 @@ pub struct InscriptionEntry {
   pub timestamp: u32,
 }
 
-pub(crate) type InscriptionEntryValue = (
+pub type InscriptionEntryValue = (
   u16,                // charms
   u64,                // fee
   u32,                // height
@@ -357,7 +357,7 @@ impl Entry for InscriptionEntry {
   }
 }
 
-pub(crate) type InscriptionIdValue = (u128, u128, u32);
+pub type InscriptionIdValue = (u128, u128, u32);
 
 impl Entry for InscriptionId {
   type Value = InscriptionIdValue;
