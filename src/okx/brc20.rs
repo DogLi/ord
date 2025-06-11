@@ -66,7 +66,7 @@ pub struct CreatedInscription<'a> {
   pub inscription: &'a Inscription,
   pub inscription_id: InscriptionId,
   pub sequence_number: u32,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub parents: &'a Vec<InscriptionId>,
   pub new_satpoint: SatPoint,
   pub pre_jubilant_curse_reason: Option<&'a Curse>,
@@ -166,7 +166,7 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
 #[derive(Debug)]
 pub struct TransferredInscription {
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub sender: UtxoAddress,
 }

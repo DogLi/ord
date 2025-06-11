@@ -5,7 +5,7 @@ use super::*;
 pub struct ApiTickInfo {
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub supply: String,
   pub burned_supply: String,
   pub self_mint: bool,

@@ -21,7 +21,7 @@ pub(crate) struct BRC20ExecutionMessage {
   txid: Txid,
   inscription_id: InscriptionId,
   sequence_number: u32,
-  inscription_number: i32,
+  inscription_number: i64,
   old_satpoint: SatPoint,
   new_satpoint: SatPoint,
   sender: UtxoAddress,

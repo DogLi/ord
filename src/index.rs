@@ -85,13 +85,15 @@ define_table! { HEIGHT_TO_BLOCK_HEADER, u32, &HeaderValue }
 define_table! { HEIGHT_TO_LAST_SEQUENCE_NUMBER, u32, u32 }
 define_table! { HOME_INSCRIPTIONS, u32, InscriptionIdValue }
 define_table! { INSCRIPTION_ID_TO_SEQUENCE_NUMBER, InscriptionIdValue, u32 }
-define_table! { INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER, i32, u32 }
+// define_table! { INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER, i32, u32 }
+define_table! { INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2, i64, u32 }
 define_table! { OUTPOINT_TO_RUNE_BALANCES, &OutPointValue, &[u8] }
 define_table! { OUTPOINT_TO_UTXO_ENTRY, &OutPointValue, &UtxoEntry }
 define_table! { RUNE_ID_TO_RUNE_ENTRY, RuneIdValue, RuneEntryValue }
 define_table! { RUNE_TO_RUNE_ID, u128, RuneIdValue }
 define_table! { SAT_TO_SATPOINT, u64, &SatPointValue }
-define_table! { SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY, u32, InscriptionEntryValue }
+// define_table! { SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY, u32, InscriptionEntryValue }
+define_table! { SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2, u32, InscriptionEntryValue }
 define_table! { SEQUENCE_NUMBER_TO_RUNE_ID, u32, RuneIdValue }
 define_table! { SEQUENCE_NUMBER_TO_SATPOINT, u32, &SatPointValue }
 define_table! { STATISTIC_TO_COUNT, u64, u64 }
@@ -406,13 +408,13 @@ impl Index {
         tx.open_table(HEIGHT_TO_LAST_SEQUENCE_NUMBER)?;
         tx.open_table(HOME_INSCRIPTIONS)?;
         tx.open_table(INSCRIPTION_ID_TO_SEQUENCE_NUMBER)?;
-        tx.open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
+        tx.open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2)?;
         tx.open_table(OUTPOINT_TO_RUNE_BALANCES)?;
         tx.open_table(OUTPOINT_TO_UTXO_ENTRY)?;
         tx.open_table(RUNE_ID_TO_RUNE_ENTRY)?;
         tx.open_table(RUNE_TO_RUNE_ID)?;
         tx.open_table(SAT_TO_SATPOINT)?;
-        tx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+        tx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
         tx.open_table(SEQUENCE_NUMBER_TO_RUNE_ID)?;
         tx.open_table(SEQUENCE_NUMBER_TO_SATPOINT)?;
         tx.open_table(TRANSACTION_ID_TO_RUNE)?;
@@ -927,7 +929,7 @@ impl Index {
     let outpoint_to_utxo_entry = rtx.open_table(OUTPOINT_TO_UTXO_ENTRY)?;
 
     for result in rtx
-      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?
+      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?
       .iter()?
     {
       let entry = result?;
@@ -1397,7 +1399,7 @@ impl Index {
     let rtx = self.database.begin_read()?;
 
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let mut collections = rtx
       .open_multimap_table(SEQUENCE_NUMBER_TO_CHILDREN)?
@@ -1460,7 +1462,7 @@ impl Index {
       .value();
 
     let sequence_number_to_inscription_entry = rtx
-      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)
+      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)
       .unwrap();
 
     let parent_sequences = InscriptionEntry::load(
@@ -1495,7 +1497,7 @@ impl Index {
   ) -> Result<(Vec<InscriptionId>, bool)> {
     let rtx = self.database.begin_read()?;
 
-    let sequence_number_to_entry = rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+    let sequence_number_to_entry = rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let mut children = rtx
       .open_multimap_table(SEQUENCE_NUMBER_TO_CHILDREN)?
@@ -1530,7 +1532,7 @@ impl Index {
     const PAGE_SIZE: usize = 100;
     let rtx = self.database.begin_read()?;
 
-    let sequence_number_to_entry = rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+    let sequence_number_to_entry = rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let mut parents = parent_sequence_numbers
       .iter()
@@ -1574,7 +1576,7 @@ impl Index {
     let rtx = self.database.begin_read()?;
 
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let ids = rtx
       .open_multimap_table(SAT_TO_SEQUENCE_NUMBER)?
@@ -1603,7 +1605,7 @@ impl Index {
     let rtx = self.database.begin_read()?;
 
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let mut ids = rtx
       .open_multimap_table(SAT_TO_SEQUENCE_NUMBER)?
@@ -1639,7 +1641,7 @@ impl Index {
     let rtx = self.database.begin_read()?;
 
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let sat_to_sequence_number = rtx.open_multimap_table(SAT_TO_SEQUENCE_NUMBER)?;
 
@@ -1668,7 +1670,7 @@ impl Index {
   #[cfg(test)]
   pub(crate) fn get_inscription_id_by_inscription_number(
     &self,
-    inscription_number: i32,
+    inscription_number: i64,
   ) -> Result<Option<InscriptionId>> {
     let rtx = self.database.begin_read()?;
 
@@ -1681,7 +1683,7 @@ impl Index {
     };
 
     let inscription_id = rtx
-      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?
+      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?
       .get(&sequence_number)?
       .map(|entry| InscriptionEntry::load(entry.value()).id);
 
@@ -1768,7 +1770,7 @@ impl Index {
     let rtx = self.database.begin_read()?;
     let outpoint_to_utxo_entry = rtx.open_table(OUTPOINT_TO_UTXO_ENTRY)?;
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     self.inscriptions_on_output(
       &outpoint_to_utxo_entry,
@@ -2029,7 +2031,7 @@ impl Index {
     let rtx = self.database.begin_read()?;
 
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let last = sequence_number_to_inscription_entry
       .iter()?
@@ -2062,7 +2064,7 @@ impl Index {
 
     let height_to_last_sequence_number = rtx.open_table(HEIGHT_TO_LAST_SEQUENCE_NUMBER)?;
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let Some(newest_sequence_number) = height_to_last_sequence_number
       .get(&block_height)?
@@ -2159,7 +2161,7 @@ impl Index {
       self
         .database
         .begin_read()?
-        .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?
+        .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?
         .iter()?
         .rev()
         .take(n)
@@ -2183,7 +2185,7 @@ impl Index {
         .get(&id.store())?
         .map(|guard| guard.value()),
       query::Inscription::Number(inscription_number) => rtx
-        .open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?
+        .open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2)?
         .get(inscription_number)?
         .map(|guard| guard.value()),
       query::Inscription::Sat(sat) => rtx
@@ -2215,7 +2217,7 @@ impl Index {
     };
 
     let sequence_number_to_inscription_entry =
-      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     let entry = InscriptionEntry::load(
       sequence_number_to_inscription_entry
@@ -2392,7 +2394,7 @@ impl Index {
     };
 
     let entry = rtx
-      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?
+      .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?
       .get(sequence_number)?
       .map(|value| InscriptionEntry::load(value.value()));
 

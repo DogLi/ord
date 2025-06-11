@@ -293,7 +293,7 @@ pub struct InscriptionEntry {
   pub fee: u64,
   pub height: u32,
   pub id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub parents: Vec<u32>,
   pub sat: Option<Sat>,
   pub sequence_number: u32,
@@ -305,7 +305,7 @@ pub type InscriptionEntryValue = (
   u64,                // fee
   u32,                // height
   InscriptionIdValue, // inscription id
-  i32,                // inscription number
+  i64,                // inscription number
   Vec<u32>,           // parents
   Option<u64>,        // sat
   u32,                // sequence number

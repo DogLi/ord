@@ -77,7 +77,7 @@ impl_bincode_dynamic_entry!(Vec<InscriptionReceipt>, InscriptionReceiptsValue);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct InscriptionReceipt {
   pub sequence_number: u32,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,

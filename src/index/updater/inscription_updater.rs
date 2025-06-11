@@ -41,7 +41,7 @@ enum Origin {
   },
   Old {
     sequence_number: u32,
-    inscription_number: i32,
+    inscription_number: i64,
   },
 }
 
@@ -53,7 +53,7 @@ pub(super) struct InscriptionUpdater<'a, 'tx> {
   pub(super) home_inscription_count: u64,
   pub(super) home_inscriptions: &'a mut Table<'tx, u32, InscriptionIdValue>,
   pub(super) id_to_sequence_number: &'a mut Table<'tx, InscriptionIdValue, u32>,
-  pub(super) inscription_number_to_sequence_number: &'a mut Table<'tx, i32, u32>,
+  pub(super) inscription_number_to_sequence_number: &'a mut Table<'tx, i64, u32>,
   pub(super) lost_sats: u64,
   pub(super) next_sequence_number: u32,
   pub(super) reward: u64,
@@ -516,11 +516,11 @@ impl InscriptionUpdater<'_, '_> {
         ..
       } => {
         let inscription_number = if cursed {
-          let number: i32 = self.cursed_inscription_count.try_into().unwrap();
+          let number: i64 = self.cursed_inscription_count.try_into().unwrap();
           self.cursed_inscription_count += 1;
           -(number + 1)
         } else {
-          let number: i32 = self.blessed_inscription_count.try_into().unwrap();
+          let number: i64 = self.blessed_inscription_count.try_into().unwrap();
           self.blessed_inscription_count += 1;
           number
         };

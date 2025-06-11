@@ -33,7 +33,7 @@ impl_bincode_dynamic_entry!(BRC20TickerInfo, BRC20TickerInfoValue);
 pub struct BRC20TickerInfo {
   pub ticker: BRC20Ticker,
   pub sequence_number: u32,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub inscription_id: InscriptionId,
   pub total_supply: u128,
   pub burned: u128,
@@ -55,7 +55,7 @@ pub struct BRC20TransferAsset {
   pub amount: u128,
   pub owner: UtxoAddress,
   pub sequence_number: u32,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub inscription_id: InscriptionId,
 }
 
@@ -65,7 +65,7 @@ impl_bincode_dynamic_entry!(Vec<BRC20Receipt>, BRC20ReceiptsValue);
 pub struct BRC20Receipt {
   pub inscription_id: InscriptionId,
   pub sequence_number: u32,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub op_type: BRC20OpType,

@@ -4,7 +4,7 @@ use super::*;
 #[serde(rename_all = "camelCase")]
 pub struct ApiTransferableAsset {
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub amount: String,
   pub tick: BRC20Ticker,
   pub owner: ApiUtxoAddress,

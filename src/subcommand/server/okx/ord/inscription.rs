@@ -17,7 +17,7 @@ pub enum ApiContentEncoding {
 #[serde(rename_all = "camelCase")]
 pub struct ApiInscription {
   pub id: InscriptionId,
-  pub number: i32,
+  pub number: i64,
   pub content_type: Option<String>,
   pub content: Option<String>,
   pub content_length: Option<usize>,
@@ -62,7 +62,7 @@ pub(crate) async fn ord_inscription_id(
 pub(crate) async fn ord_inscription_number(
   Extension(settings): Extension<Arc<Settings>>,
   Extension(index): Extension<Arc<Index>>,
-  Path(number): Path<i32>,
+  Path(number): Path<i64>,
 ) -> ApiResult<ApiInscription> {
   log::debug!("rpc: get ord_inscription_number: {number}");
 

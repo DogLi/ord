@@ -10,7 +10,7 @@ pub struct InscriptionHtml {
   pub height: u32,
   pub inscription: Inscription,
   pub id: InscriptionId,
-  pub number: i32,
+  pub number: i64,
   pub next: Option<InscriptionId>,
   pub output: Option<TxOut>,
   pub parents: Vec<InscriptionId>,

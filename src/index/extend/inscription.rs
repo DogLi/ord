@@ -15,13 +15,13 @@ impl Index {
   }
 
   pub(crate) fn sequence_number_by_inscription_number(
-    inscription_number: i32,
+    inscription_number: i64,
     rtx: &Rtx,
   ) -> Result<Option<u32>> {
     Ok(
       rtx
         .0
-        .open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?
+        .open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2)?
         .get(&inscription_number)?
         .map(|guard| guard.value()),
     )
@@ -34,7 +34,7 @@ impl Index {
     Ok(
       rtx
         .0
-        .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?
+        .open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?
         .get(&sequence_number)?
         .map(|entry| InscriptionEntry::load(entry.value())),
     )
@@ -57,10 +57,10 @@ impl Index {
     outpoint: OutPoint,
     rtx: &Rtx,
     index: &Index,
-  ) -> Result<(Vec<(SatPoint, InscriptionId, i32)>, u64, Option<ScriptBuf>)> {
+  ) -> Result<(Vec<(SatPoint, InscriptionId, i64)>, u64, Option<ScriptBuf>)> {
     let outpoint_to_utxo_entry = rtx.0.open_table(OUTPOINT_TO_UTXO_ENTRY)?;
     let sequence_number_to_inscription_entry =
-      rtx.0.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY)?;
+      rtx.0.open_table(SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2)?;
 
     if !index.index_inscriptions {
       return Ok((Vec::new(), 0, None));

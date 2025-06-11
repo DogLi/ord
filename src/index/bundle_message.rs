@@ -30,7 +30,7 @@ pub struct BundleMessage {
   pub txid: Txid,
   pub inscription_id: InscriptionId,
   pub sequence_number: u32,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub sender: UtxoAddress,

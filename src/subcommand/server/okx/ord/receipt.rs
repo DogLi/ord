@@ -27,7 +27,7 @@ impl From<Action> for ApiInscriptionAction {
 #[serde(rename_all = "camelCase")]
 pub struct ApiTxInscription {
   pub action: ApiInscriptionAction,
-  pub inscription_number: i32,
+  pub inscription_number: i64,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,

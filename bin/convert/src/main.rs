@@ -1,13 +1,26 @@
 use ord::define_table;
-use ord::index::{INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER, SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY};
 use redb::TableDefinition;
 use redb::{Database, ReadableTable};
 use std::time::Instant;
 
+define_table! { INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER, i32, u32 }
 define_table! { INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2, i64, u32 }
+
+define_table! { SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY, u32, InscriptionEntryValue }
 define_table! { SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2, u32, InscriptionEntryValue2 }
 
 type InscriptionIdValue = (u128, u128, u32);
+type InscriptionEntryValue = (
+  u16,                // charms
+  u64,                // fee
+  u32,                // height
+  InscriptionIdValue, // inscription id
+  i32,                // inscription number
+  Vec<u32>,           // parents
+  Option<u64>,        // sat
+  u32,                // sequence number
+  u32,                // timestamp
+);
 type InscriptionEntryValue2 = (
   u16,                // charms
   u64,                // fee
@@ -45,13 +58,13 @@ where
 
 fn convert_inscription_table(db: &Database, batch_size: usize) -> anyhow::Result<()> {
   let mut processed_count = 0;
-  let total_count = get_data_len(db, INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
+  let total_count = get_data_len(db, INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2)?;
   log::info!("Total inscription number count: {}", total_count);
 
   loop {
     let tx = db.begin_write()?;
     {
-      let mut table_old = tx.open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER)?;
+      let mut table_old = tx.open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2)?;
       let mut table_new = tx.open_table(INSCRIPTION_NUMBER_TO_SEQUENCE_NUMBER2)?;
       let mut batch_iter = table_old.iter().unwrap();
       let mut kv_list = Vec::with_capacity(batch_size);
