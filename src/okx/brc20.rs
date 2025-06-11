@@ -93,7 +93,7 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
         inscription,
         inscription_id: event.inscription_id,
         sequence_number: event.sequence_number,
-        inscription_number: event.inscription_number,
+        inscription_number: 0,
         parents: &parents,
         new_satpoint: event.new_satpoint,
         pre_jubilant_curse_reason: pre_jubilant_curse_reason.as_ref(),
@@ -175,7 +175,7 @@ impl From<&BundleMessage> for Option<TransferredInscription> {
     match message.inscription_action {
       InscriptionAction::Transferred { .. } => Some(TransferredInscription {
         inscription_id: message.inscription_id,
-        inscription_number: message.inscription_number,
+        inscription_number: 0,
         old_satpoint: message.old_satpoint,
         sender: message.sender.clone(),
       }),

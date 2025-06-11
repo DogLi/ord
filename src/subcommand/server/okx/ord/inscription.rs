@@ -17,7 +17,7 @@ pub enum ApiContentEncoding {
 #[serde(rename_all = "camelCase")]
 pub struct ApiInscription {
   pub id: InscriptionId,
-  pub number: i32,
+  pub number: i64,
   pub content_type: Option<String>,
   pub content: Option<String>,
   pub content_length: Option<usize>,
@@ -62,7 +62,7 @@ pub(crate) async fn ord_inscription_id(
 pub(crate) async fn ord_inscription_number(
   Extension(settings): Extension<Arc<Settings>>,
   Extension(index): Extension<Arc<Index>>,
-  Path(number): Path<i32>,
+  Path(number): Path<i64>,
 ) -> ApiResult<ApiInscription> {
   log::debug!("rpc: get ord_inscription_number: {number}");
 
@@ -122,9 +122,9 @@ fn ord_inscription_by_sequence_number(
   };
 
   let mut parents = Vec::new();
-  for parent_sequence_number in inscription_entry.parents {
+  for parent_sequence_number in inscription_entry.parents.iter() {
     let parent_inscription_id =
-      Index::inscription_entry_by_sequence_number(parent_sequence_number, rtx)?
+      Index::inscription_entry_by_sequence_number(*parent_sequence_number, rtx)?
         .ok_or(ApiError::Internal(
           format!(
             "Failed to find inscription entry for sequence number: {}",
@@ -139,10 +139,10 @@ fn ord_inscription_by_sequence_number(
   let collection =
     Index::get_inscription_collection_by_sequence_number(inscription_entry.sequence_number, rtx)?
       .map(|c| c.to_string());
-
+  let number = inscription_entry.inscription_number();
   Ok(Json(ApiResponse::ok(ApiInscription {
     id: inscription_entry.id,
-    number: inscription_entry.inscription_number,
+    number,
     content_type: inscription.content_type().map(str::to_string),
     content: inscription.body().map(hex::encode),
     content_length: inscription.content_length(),

@@ -60,7 +60,7 @@ pub(crate) struct OkxInscriptionEvent {
   pub(crate) txid: Txid,
   pub(crate) inscription_id: InscriptionId,
   pub(crate) sequence_number: u32,
-  pub(crate) inscription_number: i32,
+  pub(crate) inscription_number: i64,
   pub(crate) old_satpoint: SatPoint,
   pub(crate) new_satpoint: SatPoint,
   pub(crate) sender: UtxoAddress,

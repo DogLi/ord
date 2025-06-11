@@ -1320,7 +1320,7 @@ impl Server {
           fee: entry.fee,
           height: entry.height,
           id: inscription_id,
-          number: entry.inscription_number,
+          number: entry.inscription_number(),
           output: satpoint.outpoint,
           value: output.as_ref().map(|o| o.value.to_sat()),
           sat: entry.sat,
@@ -2037,7 +2037,7 @@ impl Server {
         .get_inscription_entry(parent)?
         .ok_or_not_found(|| format!("inscription {parent}"))?;
 
-      let parent_number = entry.inscription_number;
+      let parent_number = entry.inscription_number();
 
       let (children, more_children) =
         index.get_children_by_sequence_number_paginated(entry.sequence_number, 100, page)?;
@@ -2138,7 +2138,7 @@ impl Server {
             fee: entry.fee,
             height: entry.height,
             id: inscription_id,
-            number: entry.inscription_number,
+            number: entry.inscription_number(),
             output: satpoint.outpoint,
             sat: entry.sat,
             satpoint,
@@ -2288,7 +2288,8 @@ impl Server {
         .get_inscription_entry(id)?
         .ok_or_not_found(|| format!("inscription {id}"))?;
 
-      let (parents, more) = index.get_parents_by_sequence_number_paginated(child.parents, page)?;
+      let (parents, more) =
+        index.get_parents_by_sequence_number_paginated(child.parents.clone(), page)?;
 
       let prev_page = page.checked_sub(1);
 
@@ -2297,7 +2298,7 @@ impl Server {
       Ok(
         ParentsHtml {
           id,
-          number: child.inscription_number,
+          number: child.inscription_number(),
           parents,
           prev_page,
           next_page,

@@ -293,11 +293,48 @@ pub struct InscriptionEntry {
   pub fee: u64,
   pub height: u32,
   pub id: InscriptionId,
-  pub inscription_number: i32,
+  inscription_number: i64,
   pub parents: Vec<u32>,
   pub sat: Option<Sat>,
   pub sequence_number: u32,
   pub timestamp: u32,
+}
+
+impl InscriptionEntry {
+  pub fn new(
+    charms: u16,
+    fee: u64,
+    height: u32,
+    id: InscriptionId,
+    inscription_number: i64,
+    parents: Vec<u32>,
+    sat: Option<Sat>,
+    sequence_number: u32,
+    timestamp: u32,
+  ) -> Self {
+    Self {
+      charms,
+      fee,
+      height,
+      id,
+      inscription_number,
+      parents,
+      sat,
+      sequence_number,
+      timestamp,
+    }
+  }
+  pub fn inscription_number(&self) -> i64 {
+    if self.inscription_number == 0 {
+      self.sequence_number as i64
+    } else {
+      self.inscription_number
+    }
+  }
+
+  pub fn set_inscription_number(&mut self, inscription_number: i64) {
+    self.inscription_number = inscription_number;
+  }
 }
 
 pub type InscriptionEntryValue = (
@@ -305,7 +342,7 @@ pub type InscriptionEntryValue = (
   u64,                // fee
   u32,                // height
   InscriptionIdValue, // inscription id
-  i32,                // inscription number
+  i64,                // inscription number
   Vec<u32>,           // parents
   Option<u64>,        // sat
   u32,                // sequence number

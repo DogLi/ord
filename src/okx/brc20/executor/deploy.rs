@@ -103,7 +103,7 @@ impl BRC20ExecutionMessage {
     let ticker_info = BRC20TickerInfo {
       ticker: ticker.clone(),
       sequence_number: self.sequence_number,
-      inscription_number: self.inscription_number,
+      inscription_number: 0,
       inscription_id: self.inscription_id,
       total_supply,
       burned: 0,
@@ -124,7 +124,7 @@ impl BRC20ExecutionMessage {
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,
-      inscription_number: self.inscription_number,
+      inscription_number: 0,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
       sender: self.sender.clone(),

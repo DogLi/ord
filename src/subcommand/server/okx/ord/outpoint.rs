@@ -5,7 +5,7 @@ use {super::*, axum::Json};
 #[serde(rename_all = "camelCase")]
 pub struct ApiInscriptionDigest {
   pub id: InscriptionId,
-  pub number: i32,
+  pub number: i64,
   pub location: SatPoint,
 }
 

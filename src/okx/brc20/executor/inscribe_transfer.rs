@@ -61,7 +61,7 @@ impl BRC20ExecutionMessage {
       amount: amt.to_u128_and_scale().0,
       owner: address.clone(),
       sequence_number: self.sequence_number,
-      inscription_number: self.inscription_number,
+      inscription_number: 0,
       inscription_id: self.inscription_id,
     };
 
@@ -76,7 +76,7 @@ impl BRC20ExecutionMessage {
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,
-      inscription_number: self.inscription_number,
+      inscription_number: 0,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
       sender: self.sender.clone(),

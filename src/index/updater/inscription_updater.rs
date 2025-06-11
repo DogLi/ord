@@ -41,7 +41,7 @@ enum Origin {
   },
   Old {
     sequence_number: u32,
-    inscription_number: i32,
+    inscription_number: i64,
   },
 }
 
@@ -53,7 +53,7 @@ pub(super) struct InscriptionUpdater<'a, 'tx> {
   pub(super) home_inscription_count: u64,
   pub(super) home_inscriptions: &'a mut Table<'tx, u32, InscriptionIdValue>,
   pub(super) id_to_sequence_number: &'a mut Table<'tx, InscriptionIdValue, u32>,
-  pub(super) inscription_number_to_sequence_number: &'a mut Table<'tx, i32, u32>,
+  pub(super) inscription_number_to_sequence_number: &'a mut Table<'tx, i64, u32>,
   pub(super) lost_sats: u64,
   pub(super) next_sequence_number: u32,
   pub(super) reward: u64,
@@ -145,7 +145,7 @@ impl InscriptionUpdater<'_, '_> {
           input_script_buf: input_script_buf.to_vec(),
           origin: Origin::Old {
             sequence_number,
-            inscription_number: inscription_entry.inscription_number,
+            inscription_number: inscription_entry.inscription_number(),
           },
         });
 
@@ -213,7 +213,7 @@ impl InscriptionUpdater<'_, '_> {
             );
 
             let initial_inscription_was_cursed_or_vindicated =
-              entry.inscription_number < 0 || Charm::Vindicated.is_set(entry.charms);
+              entry.inscription_number() < 0 || Charm::Vindicated.is_set(entry.charms);
 
             if initial_inscription_was_cursed_or_vindicated {
               None
@@ -476,7 +476,7 @@ impl InscriptionUpdater<'_, '_> {
         inscription_number,
       } => {
         if op_return {
-          let entry = InscriptionEntry::load(
+          let mut entry = InscriptionEntry::load(
             self
               .sequence_number_to_entry
               .get(&sequence_number)?
@@ -487,10 +487,10 @@ impl InscriptionUpdater<'_, '_> {
           let mut charms = entry.charms;
           Charm::Burned.set(&mut charms);
 
-          self.sequence_number_to_entry.insert(
-            sequence_number,
-            &InscriptionEntry { charms, ..entry }.store(),
-          )?;
+          entry.charms = charms;
+          self
+            .sequence_number_to_entry
+            .insert(sequence_number, &entry.store())?;
         }
 
         if let Some(ref sender) = index.event_sender {
@@ -516,11 +516,11 @@ impl InscriptionUpdater<'_, '_> {
         ..
       } => {
         let inscription_number = if cursed {
-          let number: i32 = self.cursed_inscription_count.try_into().unwrap();
+          let number: i64 = self.cursed_inscription_count.try_into().unwrap();
           self.cursed_inscription_count += 1;
           -(number + 1)
         } else {
-          let number: i32 = self.blessed_inscription_count.try_into().unwrap();
+          let number: i64 = self.blessed_inscription_count.try_into().unwrap();
           self.blessed_inscription_count += 1;
           number
         };
@@ -602,17 +602,17 @@ impl InscriptionUpdater<'_, '_> {
 
         self.sequence_number_to_entry.insert(
           sequence_number,
-          &InscriptionEntry {
+          &InscriptionEntry::new(
             charms,
             fee,
-            height: self.height,
-            id: inscription_id,
+            self.height,
+            inscription_id,
             inscription_number,
-            parents: parent_sequence_numbers,
+            parent_sequence_numbers,
             sat,
             sequence_number,
-            timestamp: self.timestamp,
-          }
+            self.timestamp,
+          )
           .store(),
         )?;
 

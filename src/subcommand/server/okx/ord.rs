@@ -10,7 +10,7 @@ pub(crate) use {bitmap::*, btc_domain::*, inscription::*, outpoint::*, receipt::
 #[derive(Debug, thiserror::Error)]
 pub enum OrdApiError {
   #[error("Unknown inscription number '{0}': no matching inscription found.")]
-  InscriptionNotFoundByNum(i32),
+  InscriptionNotFoundByNum(i64),
 
   #[error("Invalid inscription ID '{0}': the inscription does not exist.")]
   InscriptionNotFoundById(InscriptionId),

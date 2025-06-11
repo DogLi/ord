@@ -65,7 +65,7 @@ impl BRC20ExecutionMessage {
       return Ok(BRC20Receipt {
         inscription_id: self.inscription_id,
         sequence_number: self.sequence_number,
-        inscription_number: self.inscription_number,
+        inscription_number: 0,
         old_satpoint: self.old_satpoint,
         new_satpoint: self.new_satpoint,
         op_type: BRC20OpType::Commit,
@@ -90,7 +90,7 @@ impl BRC20ExecutionMessage {
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,
-      inscription_number: self.inscription_number,
+      inscription_number: 0,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
       op_type: BRC20OpType::Commit,
@@ -132,7 +132,7 @@ impl BRC20ExecutionMessage {
       return Ok(BRC20Receipt {
         inscription_id: self.inscription_id,
         sequence_number: self.sequence_number,
-        inscription_number: self.inscription_number,
+        inscription_number: 0,
         old_satpoint: self.old_satpoint,
         new_satpoint: self.new_satpoint,
         op_type: BRC20OpType::TransferCommit,
@@ -505,7 +505,7 @@ impl BRC20ExecutionMessage {
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,
-      inscription_number: self.inscription_number,
+      inscription_number: 0,
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
       op_type: BRC20OpType::TransferCommit,

@@ -21,7 +21,7 @@ pub(crate) struct BRC20ExecutionMessage {
   txid: Txid,
   inscription_id: InscriptionId,
   sequence_number: u32,
-  inscription_number: i32,
+  inscription_number: i64,
   old_satpoint: SatPoint,
   new_satpoint: SatPoint,
   sender: UtxoAddress,
@@ -114,7 +114,7 @@ impl BRC20ExecutionMessage {
           // Handle specific execution failure
           inscription_id: self.inscription_id,
           sequence_number: self.sequence_number,
-          inscription_number: self.inscription_number,
+          inscription_number: 0,
           old_satpoint: self.old_satpoint,
           new_satpoint: self.new_satpoint,
           op_type: BRC20OpType::from(&self.operation),

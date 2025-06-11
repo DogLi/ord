@@ -77,6 +77,7 @@ impl_bincode_dynamic_entry!(Vec<InscriptionReceipt>, InscriptionReceiptsValue);
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct InscriptionReceipt {
   pub sequence_number: u32,
+  /// inscription number in db
   pub inscription_number: i32,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
@@ -91,7 +92,7 @@ impl From<BundleMessage> for InscriptionReceipt {
     Self {
       sequence_number: value.sequence_number,
       inscription_id: value.inscription_id,
-      inscription_number: value.inscription_number,
+      inscription_number: 0,
       old_satpoint: value.old_satpoint,
       new_satpoint: value.new_satpoint,
       sender: value.sender,

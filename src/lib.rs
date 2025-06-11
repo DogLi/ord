@@ -96,7 +96,7 @@ pub use self::{
   fee_rate::FeeRate,
   index::{
     entry::InscriptionEntryValue, Index, RuneEntry, INSCRIPTION_ID_TO_SEQUENCE_NUMBER,
-    SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY,
+    SEQUENCE_NUMBER_TO_INSCRIPTION_ENTRY2,
   },
   inscriptions::{Envelope, Inscription, InscriptionId},
   object::Object,
