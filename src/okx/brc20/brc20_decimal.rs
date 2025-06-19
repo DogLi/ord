@@ -1,4 +1,4 @@
-use super::fixed_point::{self, FixedPoint};
+use super::fixed_point::FixedPoint;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt::Display;

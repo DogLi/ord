@@ -108,7 +108,12 @@ impl BRC20ExecutionMessage {
           || matches!(self.operation, BRC20Operation::Commit(_))
           || matches!(self.operation, BRC20Operation::TransferCommit(_))
         {
-          panic!("brc20swap operation failed, ExecutionError{:?}", e);
+          if let BRC20Error::InvalidSwapFeeRate(s) = &e {
+            log::error!("invalid swap fee rate: {}", s);
+            return Err(e.into());
+          } else {
+            panic!("brc20swap operation failed, ExecutionError{:?}", e);
+          }
         }
         Ok(BRC20Receipt {
           // Handle specific execution failure
