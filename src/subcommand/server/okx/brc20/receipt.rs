@@ -25,10 +25,11 @@ pub enum ApiTxEvent {
 
 impl From<BRC20Receipt> for ApiTxEvent {
   fn from(event: BRC20Receipt) -> Self {
+    let inscription_number = event.inscription_number();
     match event.result {
       Ok(BRC20Event::Deploy(deploy_event)) => Self::Deploy(ApiDeployEvent {
         inscription_id: event.inscription_id,
-        inscription_number: event.inscription_number,
+        inscription_number,
         old_satpoint: event.old_satpoint,
         new_satpoint: event.new_satpoint,
         from: event.sender.into(),
@@ -44,7 +45,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       }),
       Ok(BRC20Event::Mint(mint_event)) => Self::Mint(ApiMintEvent {
         inscription_id: event.inscription_id,
-        inscription_number: event.inscription_number,
+        inscription_number,
         old_satpoint: event.old_satpoint,
         new_satpoint: event.new_satpoint,
         from: event.sender.into(),
@@ -58,7 +59,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       Ok(BRC20Event::InscribeTransfer(inscribe_transfer_event)) => {
         Self::InscribeTransfer(ApiInscribeTransferEvent {
           inscription_id: event.inscription_id,
-          inscription_number: event.inscription_number,
+          inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           from: event.sender.into(),
@@ -72,7 +73,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       }
       Ok(BRC20Event::Transfer(transfer_event)) => Self::Transfer(ApiTransferEvent {
         inscription_id: event.inscription_id,
-        inscription_number: event.inscription_number,
+        inscription_number,
         old_satpoint: event.old_satpoint,
         new_satpoint: event.new_satpoint,
         from: event.sender.into(),
@@ -86,7 +87,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       Ok(BRC20Event::CreateModule(create_module_event)) => {
         Self::CreateModule(ApiCreateModuleEvent {
           inscription_id: event.inscription_id,
-          inscription_number: event.inscription_number,
+          inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           valid: true,
@@ -106,7 +107,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       Ok(BRC20Event::InscribeWithdraw(withdraw_event)) => {
         Self::InscribeWithdraw(ApiInscribeWithdrawEvent {
           inscription_id: event.inscription_id,
-          inscription_number: event.inscription_number,
+          inscription_number,
           satpoint: event.new_satpoint,
           amount: withdraw_event.amount.to_string().replace(".", ""), // 直接替换掉小数点，小数点之后的位数取决于创建tick时指定的decimal
           from: event.sender.into(),
@@ -121,7 +122,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       Ok(BRC20Event::TransferWithdraw(withdraw_event)) => {
         Self::TransferWithdraw(ApiTransferWithdrawEvent {
           inscription_id: event.inscription_id,
-          inscription_number: event.inscription_number,
+          inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           amount: withdraw_event.amount.to_string().replace(".", ""), // 直接替换掉小数点，小数点之后的位数取决于创建tick时指定的decimal
@@ -137,7 +138,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       Ok(BRC20Event::InscribeCommit(commit_event)) => {
         Self::InscribeCommit(ApiInscribeCommitEvent {
           inscription_id: event.inscription_id,
-          inscription_number: event.inscription_number,
+          inscription_number,
           satpoint: event.new_satpoint,
           from: event.sender.into(),
           to: event.receiver.into(),
@@ -150,7 +151,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       Ok(BRC20Event::TransferCommit(commit_event)) => {
         Self::TransferCommit(ApiTransferCommitEvent {
           inscription_id: event.inscription_id,
-          inscription_number: event.inscription_number,
+          inscription_number,
           old_satpoint: event.old_satpoint,
           new_satpoint: event.new_satpoint,
           from: event.sender.into(),
@@ -163,7 +164,7 @@ impl From<BRC20Receipt> for ApiTxEvent {
       }
       Err(err) => Self::Error(ApiErrorEvent {
         inscription_id: event.inscription_id,
-        inscription_number: event.inscription_number,
+        inscription_number,
         old_satpoint: event.old_satpoint,
         new_satpoint: event.new_satpoint,
         from: event.sender.into(),
@@ -182,7 +183,7 @@ pub struct ApiErrorEvent {
   #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub from: ApiUtxoAddress,
@@ -198,7 +199,7 @@ pub struct ApiDeployEvent {
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub supply: String,
@@ -218,7 +219,7 @@ pub struct ApiMintEvent {
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub amount: String,
@@ -235,7 +236,7 @@ pub struct ApiInscribeTransferEvent {
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub amount: String,
@@ -252,7 +253,7 @@ pub struct ApiTransferEvent {
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub amount: String,
@@ -268,7 +269,7 @@ pub struct ApiCreateModuleEvent {
   #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub valid: bool,
@@ -296,7 +297,7 @@ pub struct ApiInscribeWithdrawEvent {
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub satpoint: SatPoint,
   pub amount: String,
   pub from: ApiUtxoAddress,
@@ -313,7 +314,7 @@ pub struct ApiTransferWithdrawEvent {
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub amount: String,
@@ -330,7 +331,7 @@ pub struct ApiInscribeCommitEvent {
   #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub satpoint: SatPoint,
   pub from: ApiUtxoAddress,
   pub to: ApiUtxoAddress,
@@ -345,7 +346,7 @@ pub struct ApiTransferCommitEvent {
   #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub from: ApiUtxoAddress,

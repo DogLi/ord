@@ -78,13 +78,23 @@ impl_bincode_dynamic_entry!(Vec<InscriptionReceipt>, InscriptionReceiptsValue);
 pub struct InscriptionReceipt {
   pub sequence_number: u32,
   /// inscription number in db
-  pub inscription_number: i32,
+  inscription_number: i32,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
   pub sender: UtxoAddress,
   pub receiver: Option<UtxoAddress>,
   pub action: Action,
+}
+
+impl InscriptionReceipt {
+  pub fn inscription_number(&self) -> u32 {
+    if self.inscription_number == 0 {
+      self.sequence_number
+    } else {
+      self.inscription_number as u32
+    }
+  }
 }
 
 impl From<BundleMessage> for InscriptionReceipt {

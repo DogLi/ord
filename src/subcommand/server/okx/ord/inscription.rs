@@ -62,16 +62,13 @@ pub(crate) async fn ord_inscription_id(
 pub(crate) async fn ord_inscription_number(
   Extension(settings): Extension<Arc<Settings>>,
   Extension(index): Extension<Arc<Index>>,
-  Path(number): Path<i64>,
+  Path(number): Path<u32>,
 ) -> ApiResult<ApiInscription> {
   log::debug!("rpc: get ord_inscription_number: {number}");
 
   task::block_in_place(|| {
     let rtx = index.begin_read()?;
-    let sequence_number = Index::sequence_number_by_inscription_number(number, &rtx)?
-      .ok_or(OrdApiError::InscriptionNotFoundByNum(number))?;
-
-    ord_inscription_by_sequence_number(sequence_number, &rtx, &index, &settings)
+    ord_inscription_by_sequence_number(number, &rtx, &index, &settings)
   })
 }
 

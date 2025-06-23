@@ -27,7 +27,7 @@ impl From<Action> for ApiInscriptionAction {
 #[serde(rename_all = "camelCase")]
 pub struct ApiTxInscription {
   pub action: ApiInscriptionAction,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub inscription_id: InscriptionId,
   pub old_satpoint: SatPoint,
   pub new_satpoint: SatPoint,
@@ -37,11 +37,12 @@ pub struct ApiTxInscription {
 
 impl From<InscriptionReceipt> for ApiTxInscription {
   fn from(value: InscriptionReceipt) -> Self {
+    let inscription_number = value.inscription_number();
     ApiTxInscription {
       from: ApiUtxoAddress::from(value.sender),
       to: value.receiver.map(ApiUtxoAddress::from),
       action: ApiInscriptionAction::from(value.action),
-      inscription_number: value.inscription_number,
+      inscription_number,
       inscription_id: value.inscription_id,
       old_satpoint: value.old_satpoint,
       new_satpoint: value.new_satpoint,

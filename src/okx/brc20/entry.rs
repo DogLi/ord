@@ -48,6 +48,16 @@ pub struct BRC20TickerInfo {
   pub latest_minted_block_height: u32,
 }
 
+impl BRC20TickerInfo {
+  pub fn inscription_number(&self) -> u32 {
+    if self.inscription_number == 0 {
+      self.sequence_number
+    } else {
+      self.inscription_number as u32
+    }
+  }
+}
+
 pub(crate) type BRC20TransferAssetValue = [u8];
 impl_bincode_dynamic_entry!(BRC20TransferAsset, BRC20TransferAssetValue);
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -59,6 +69,16 @@ pub struct BRC20TransferAsset {
   /// inscription number in db
   pub inscription_number: i32,
   pub inscription_id: InscriptionId,
+}
+
+impl BRC20TransferAsset {
+  pub fn inscription_number(&self) -> u32 {
+    if self.inscription_number == 0 {
+      self.sequence_number
+    } else {
+      self.inscription_number as u32
+    }
+  }
 }
 
 pub(crate) type BRC20ReceiptsValue = [u8];
@@ -75,6 +95,16 @@ pub struct BRC20Receipt {
   pub sender: UtxoAddress,
   pub receiver: UtxoAddress,
   pub result: Result<BRC20Event, BRC20Error>,
+}
+
+impl BRC20Receipt {
+  pub fn inscription_number(&self) -> u32 {
+    if self.inscription_number == 0 {
+      self.sequence_number
+    } else {
+      self.inscription_number as u32
+    }
+  }
 }
 
 pub struct BRC20SwapInfo {

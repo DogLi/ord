@@ -4,7 +4,7 @@ use super::*;
 #[serde(rename_all = "camelCase")]
 pub struct ApiTransferableAsset {
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub amount: String,
   pub tick: BRC20Ticker,
   pub owner: ApiUtxoAddress,
@@ -26,7 +26,7 @@ fn process_assets(
     .into_iter()
     .map(|(satpoint, asset)| ApiTransferableAsset {
       inscription_id: asset.inscription_id,
-      inscription_number: asset.inscription_number,
+      inscription_number: asset.inscription_number(),
       amount: asset.amount.to_string(),
       tick: asset.ticker,
       owner: ApiUtxoAddress::from(utxo_address),

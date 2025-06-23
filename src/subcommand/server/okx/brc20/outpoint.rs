@@ -30,7 +30,7 @@ pub(crate) async fn brc20_outpoint(
           .into_iter()
           .map(|(location, asset)| ApiTransferableAsset {
             inscription_id: asset.inscription_id,
-            inscription_number: asset.inscription_number,
+            inscription_number: asset.inscription_number(),
             amount: asset.amount.to_string(),
             tick: asset.ticker,
             owner: asset.owner.into(),

@@ -5,7 +5,7 @@ use super::*;
 pub struct ApiTickInfo {
   pub tick: BRC20Ticker,
   pub inscription_id: InscriptionId,
-  pub inscription_number: i32,
+  pub inscription_number: u32,
   pub supply: String,
   pub burned_supply: String,
   pub self_mint: bool,
@@ -20,10 +20,11 @@ pub struct ApiTickInfo {
 
 impl From<BRC20TickerInfo> for ApiTickInfo {
   fn from(tick_info: BRC20TickerInfo) -> Self {
+    let inscription_number = tick_info.inscription_number();
     Self {
       tick: tick_info.ticker,
       inscription_id: tick_info.inscription_id,
-      inscription_number: tick_info.inscription_number,
+      inscription_number,
       supply: tick_info.total_supply.to_string(),
       burned_supply: tick_info.burned.to_string(),
       limit_per_mint: tick_info.max_mint_limit.to_string(),
