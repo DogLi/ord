@@ -187,10 +187,23 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
           })
         }
         Ok(RawOperation::CreateModule(create_module)) => {
+          if !first_inscription {
+            return None;
+          }
           Some(BRC20Operation::CreateModule(create_module))
         }
-        Ok(RawOperation::Withdraw(withdraw)) => Some(BRC20Operation::Withdraw(withdraw)),
-        Ok(RawOperation::Commit(commit)) => Some(BRC20Operation::Commit(commit)),
+        Ok(RawOperation::Withdraw(withdraw)) => {
+          if !first_inscription {
+            return None;
+          }
+          Some(BRC20Operation::Withdraw(withdraw))
+        }
+        Ok(RawOperation::Commit(commit)) => {
+          if !first_inscription {
+            return None;
+          }
+          Some(BRC20Operation::Commit(commit))
+        }
         _ => None,
       }
     } else {
