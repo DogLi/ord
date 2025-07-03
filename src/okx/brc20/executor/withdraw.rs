@@ -1,8 +1,9 @@
 use std::cmp::Ordering;
 
 use super::*;
-use crate::okx::brc20::{
-  brc20_decimal::Brc20Decimal, entry::BRC20ModuleTokenBalance, utils::get_valid_unique_lower_ticker,
+use crate::okx::{
+  brc20::{brc20_decimal::Brc20Decimal, entry::BRC20ModuleTokenBalance}, 
+  utils::get_valid_unique_lower_ticker,
 };
 
 impl BRC20ExecutionMessage {
