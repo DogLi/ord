@@ -360,7 +360,7 @@ impl Updater<'_> {
     block: BlockData,
     utxo_cache: &mut HashMap<OutPoint, UtxoEntryBuf>,
   ) -> Result<()> {
-    Reorg::detect_reorg(&block, self.height, self.index)?;
+    Reorg::detect_reorg(&block, self.height, &self.index.client, wtx)?;
 
     let start = Instant::now();
     let mut sat_ranges_written = 0;

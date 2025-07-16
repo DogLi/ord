@@ -72,19 +72,25 @@ impl Reorg {
     }
     None
   }
-  pub(crate) fn detect_reorg(block: &BlockData, height: u32, index: &Index) -> Result {
+  pub(crate) fn detect_reorg(
+    block: &BlockData,
+    height: u32,
+    client: &Client,
+    wtx: &mut WriteTransaction,
+  ) -> Result {
+    let height_to_block_header = wtx.open_table(HEIGHT_TO_BLOCK_HEADER)?;
     let bitcoind_prev_blockhash = block.header.prev_blockhash;
 
-    match index.block_hash(height.checked_sub(1))? {
+    match Index::block_hash_from_table(&height_to_block_header, height.checked_sub(1))? {
       Some(index_prev_blockhash) if index_prev_blockhash == bitcoind_prev_blockhash => Ok(()),
       Some(index_prev_blockhash) if index_prev_blockhash != bitcoind_prev_blockhash => {
         let max_recoverable_reorg_depth =
           (MAX_SAVEPOINTS - 1) * SAVEPOINT_INTERVAL + height % SAVEPOINT_INTERVAL;
 
         for depth in 1..max_recoverable_reorg_depth {
-          let index_block_hash = index.block_hash(height.checked_sub(depth))?;
-          let bitcoind_block_hash = index
-            .client
+          let index_block_hash =
+            Index::block_hash_from_table(&height_to_block_header, height.checked_sub(depth))?;
+          let bitcoind_block_hash = client
             .get_block_hash(u64::from(height.saturating_sub(depth)))
             .into_option()?;
 
@@ -95,7 +101,10 @@ impl Reorg {
 
         Err(anyhow!(reorg::Error::Unrecoverable))
       }
-      _ => Ok(()),
+      _ => {
+        log::error!("failed to get previous block hash for height {height}");
+        Err(anyhow!(reorg::Error::Recoverable { height, depth: 1 }))
+      }
     }
   }
 
