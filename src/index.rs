@@ -1073,6 +1073,23 @@ impl Index {
     self.begin_read()?.block_hash(height)
   }
 
+  pub fn block_hash_from_table(
+    height_to_block_header: &Table<u32, &HeaderValue>,
+    height: Option<u32>,
+  ) -> Result<Option<BlockHash>> {
+    Ok(
+      match height {
+        Some(height) => height_to_block_header.get(height)?,
+        None => height_to_block_header
+          .range(0..)?
+          .next_back()
+          .transpose()?
+          .map(|(_height, header)| header),
+      }
+      .map(|header| Header::load(*header.value()).block_hash()),
+    )
+  }
+
   pub fn blocks(&self, take: usize) -> Result<Vec<(u32, BlockHash)>> {
     let rtx = self.begin_read()?;
 
