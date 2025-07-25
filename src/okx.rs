@@ -177,8 +177,12 @@ impl OkxUpdater {
 
     let now = Instant::now();
     for bundle_message in bundle_messages.iter() {
-      // process brc20 operation
+      // process brc20 transfer operation
       if index.has_brc20_index() {
+        if !matches!(bundle_message.inscription_action, InscriptionAction::Transferred) {
+          continue
+        }
+
         if let Some(brc20_execution_message) =
           BRC20ExecutionMessage::new_from_bundle_message(bundle_message, context)?
         {
@@ -226,6 +230,26 @@ impl OkxUpdater {
             bundle_message.sequence_number,
             bundle_message.inscription_id,
           )?;
+        }
+      }
+    }
+
+    for bundle_message in bundle_messages.iter() {
+      // process brc20 inscribe operation
+      if index.has_brc20_index() {
+        if matches!(bundle_message.inscription_action, InscriptionAction::Transferred) {
+          continue
+        }
+
+        if let Some(brc20_execution_message) =
+          BRC20ExecutionMessage::new_from_bundle_message(bundle_message, context)?
+        {
+          if let Ok(receipt) =
+            brc20_execution_message.execute(index, context, self.height, self.timestamp)
+          {
+            brc20_execution_receipts.push(receipt);
+          }
+          continue;
         }
       }
     }
