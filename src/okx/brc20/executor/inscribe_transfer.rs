@@ -75,6 +75,7 @@ impl BRC20ExecutionMessage {
 
     let amount = amt.to_u128_and_scale().0;
     if let Some(mut receiver_balance) = receiver_balance {
+      // send to a different receiver's available balance
       sender_balance.total = sender_balance
         .total
         .checked_sub(amount)
@@ -82,6 +83,11 @@ impl BRC20ExecutionMessage {
 
       receiver_balance.total = receiver_balance
         .total
+        .checked_add(amount)
+        .expect("Addition overflow");
+
+      receiver_balance.available = receiver_balance
+        .available
         .checked_add(amount)
         .expect("Addition overflow");
 
@@ -127,25 +133,24 @@ impl BRC20ExecutionMessage {
         }
         Err(_) => {}
       }
+    } else {
+      let transferring_asset = BRC20TransferAsset {
+        ticker: ticker.clone(),
+        amount,
+        owner: receiver.clone(),
+        sequence_number: self.sequence_number,
+        inscription_number: 0,
+        inscription_id: self.inscription_id,
+      };
+
+      context.insert_brc20_transferring_asset(
+        &receiver,
+        &ticker,
+        self.new_satpoint,
+        transferring_asset,
+      )?;
     }
-
     context.update_brc20_balance(&sender, &ticker, sender_balance)?;
-
-    let transferring_asset = BRC20TransferAsset {
-      ticker: ticker.clone(),
-      amount,
-      owner: receiver.clone(),
-      sequence_number: self.sequence_number,
-      inscription_number: 0,
-      inscription_id: self.inscription_id,
-    };
-
-    context.insert_brc20_transferring_asset(
-      &receiver,
-      &ticker,
-      self.new_satpoint,
-      transferring_asset,
-    )?;
 
     log::debug!("brc20swap execute_inscribe_transfer finished: {:?}", self);
 
