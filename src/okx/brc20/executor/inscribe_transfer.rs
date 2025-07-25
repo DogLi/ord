@@ -1,11 +1,9 @@
-use std::ops::Add;
-
+use super::*;
 use crate::okx::{
   brc20::{brc20_decimal::Brc20Decimal, entry::BRC20ModuleTokenBalance},
   utils::get_module_from_script,
 };
-
-use super::*;
+use std::ops::Add;
 
 impl BRC20ExecutionMessage {
   pub(super) fn execute_inscribe_transfer(
@@ -13,7 +11,7 @@ impl BRC20ExecutionMessage {
     index: &Index,
     context: &mut TableContext,
   ) -> Result<BRC20Receipt, ExecutionError> {
-    let BRC20Operation::InscribeTransfer{ signer, transfer } = &self.operation else {
+    let BRC20Operation::InscribeTransfer { signer, transfer } = &self.operation else {
       log::debug!(
         "brc20swap execute_inscribe_transfer unreachable: {:?}, inscription_id: {:?}",
         self.txid,
@@ -33,11 +31,9 @@ impl BRC20ExecutionMessage {
     let decimals = ticker_info.clone().decimals;
     let total_supply = ticker_info.clone().total_supply;
 
-    let amt = FixedPoint::new_from_str(&transfer.amount, decimals)
-      .map_err(BRC20Error::NumericError)?;
-    if amt.is_zero()
-      || amt > FixedPoint::new_unchecked(total_supply, decimals)
-    {
+    let amt =
+      FixedPoint::new_from_str(&transfer.amount, decimals).map_err(BRC20Error::NumericError)?;
+    if amt.is_zero() || amt > FixedPoint::new_unchecked(total_supply, decimals) {
       log::debug!(
         "brc20swap execute_inscribe_transfer amount invalid: {:?}, amount: {:?}",
         self.txid,
@@ -131,14 +127,13 @@ impl BRC20ExecutionMessage {
         }
         Err(_) => {}
       }
-
     }
 
     context.update_brc20_balance(&sender, &ticker, sender_balance)?;
 
     let transferring_asset = BRC20TransferAsset {
       ticker: ticker.clone(),
-      amount: amount,
+      amount,
       owner: receiver.clone(),
       sequence_number: self.sequence_number,
       inscription_number: 0,
@@ -153,6 +148,8 @@ impl BRC20ExecutionMessage {
     )?;
 
     log::debug!("brc20swap execute_inscribe_transfer finished: {:?}", self);
+
+    let event = InscribeTransferEvent { ticker, amount };
     Ok(BRC20Receipt {
       inscription_id: self.inscription_id,
       sequence_number: self.sequence_number,
@@ -160,12 +157,12 @@ impl BRC20ExecutionMessage {
       old_satpoint: self.old_satpoint,
       new_satpoint: self.new_satpoint,
       sender: sender_or_legacy,
-      receiver: receiver,
+      receiver,
       op_type: BRC20OpType::InscribeTransfer,
-      result: Ok(BRC20Event::InscribeTransfer(InscribeTransferEvent {
-        ticker,
-        amount: amount,
-      })),
+      result: Ok(match signer {
+        Some(_) => BRC20Event::InscribeSingleStepTransfer(event),
+        None => BRC20Event::InscribeTransfer(event),
+      }),
     })
   }
 }

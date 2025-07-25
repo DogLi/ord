@@ -14,6 +14,7 @@ pub enum ApiTxEvent {
   Deploy(ApiDeployEvent),
   Mint(ApiMintEvent),
   InscribeTransfer(ApiInscribeTransferEvent),
+  InscribeSingleStepTransfer(ApiInscribeSingleStepTransfer),
   Transfer(ApiTransferEvent),
   CreateModule(ApiCreateModuleEvent),
   InscribeWithdraw(ApiInscribeWithdrawEvent),
@@ -67,6 +68,21 @@ impl From<BRC20Receipt> for ApiTxEvent {
           valid: true,
           tick: inscribe_transfer_event.ticker,
           amount: inscribe_transfer_event.amount.to_string(),
+          msg: "ok".to_string(),
+          event: event.op_type,
+        })
+      }
+      Ok(BRC20Event::InscribeSingleStepTransfer(inscribe_single_step_transfer_event)) => {
+        Self::InscribeSingleStepTransfer(ApiInscribeSingleStepTransfer {
+          inscription_id: event.inscription_id,
+          inscription_number,
+          old_satpoint: event.old_satpoint,
+          new_satpoint: event.new_satpoint,
+          from: event.sender.into(),
+          to: event.receiver.into(),
+          valid: true,
+          tick: inscribe_single_step_transfer_event.ticker,
+          amount: inscribe_single_step_transfer_event.amount.to_string(),
           msg: "ok".to_string(),
           event: event.op_type,
         })
@@ -232,6 +248,23 @@ pub struct ApiMintEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiInscribeTransferEvent {
+  #[serde(rename = "type")]
+  pub event: BRC20OpType,
+  pub tick: BRC20Ticker,
+  pub inscription_id: InscriptionId,
+  pub inscription_number: u32,
+  pub old_satpoint: SatPoint,
+  pub new_satpoint: SatPoint,
+  pub amount: String,
+  pub from: ApiUtxoAddress,
+  pub to: ApiUtxoAddress,
+  pub valid: bool,
+  pub msg: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiInscribeSingleStepTransfer {
   #[serde(rename = "type")]
   pub event: BRC20OpType,
   pub tick: BRC20Ticker,

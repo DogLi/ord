@@ -12,6 +12,7 @@ pub enum BRC20OpType {
   Commit,
   TransferWithdraw,
   TransferCommit,
+  InscribeSingleStepTransfer,
 }
 
 impl From<&BRC20Operation> for BRC20OpType {
@@ -19,13 +20,17 @@ impl From<&BRC20Operation> for BRC20OpType {
     match value {
       BRC20Operation::Deploy(_) => BRC20OpType::Deploy,
       BRC20Operation::Mint { .. } => BRC20OpType::Mint,
-      BRC20Operation::InscribeTransfer{ .. } => BRC20OpType::InscribeTransfer,
       BRC20Operation::Transfer { .. } => BRC20OpType::Transfer,
       BRC20Operation::CreateModule(_) => BRC20OpType::CreateModule,
       BRC20Operation::Withdraw(_) => BRC20OpType::Withdraw,
       BRC20Operation::Commit(_) => BRC20OpType::Commit,
       BRC20Operation::TransferWithdraw(_) => BRC20OpType::TransferWithdraw,
       BRC20Operation::TransferCommit(_) => BRC20OpType::TransferCommit,
+      BRC20Operation::InscribeTransfer { signer, .. } => {
+        signer.as_ref().map_or(BRC20OpType::InscribeTransfer, |s| {
+          BRC20OpType::InscribeSingleStepTransfer
+        })
+      }
     }
   }
 }
@@ -41,6 +46,7 @@ pub enum BRC20Event {
   TransferWithdraw(TransferWithdrawEvent),
   InscribeCommit(InscribeCommitEvent),
   TransferCommit(TransferCommitEvent),
+  InscribeSingleStepTransfer(InscribeTransferEvent),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
