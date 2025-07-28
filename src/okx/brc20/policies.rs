@@ -17,7 +17,7 @@ impl HardForks {
 
   pub fn self_single_step_transfer_activation_height(chain: &Chain) -> u32 {
     match chain {
-      Chain::Mainnet => 930000,  // decided by community
+      Chain::Mainnet => 930930,  // decided by community
       Chain::Testnet => 0, //
       Chain::Regtest => 0,
       Chain::Signet => 0,
