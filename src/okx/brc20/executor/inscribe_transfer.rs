@@ -158,7 +158,10 @@ impl BRC20ExecutionMessage {
       new_satpoint: self.new_satpoint,
       sender: sender_or_legacy,
       receiver,
-      op_type: BRC20OpType::InscribeTransfer,
+      op_type: match signer {
+        Some(_) => BRC20OpType::InscribeSingleStepTransfer,
+        None => BRC20OpType::InscribeTransfer,
+      },
       result: Ok(match signer {
         Some(_) => BRC20Event::InscribeSingleStepTransfer(event),
         None => BRC20Event::InscribeTransfer(event),
