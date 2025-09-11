@@ -15,6 +15,15 @@ impl HardForks {
     }
   }
 
+  pub fn draft_vindicated_inscription_activation_height(chain: &Chain) -> u32 {
+    match chain {
+      Chain::Mainnet => 1050000,  // decided by community
+      Chain::Testnet => 0, //
+      Chain::Regtest => 0,
+      Chain::Signet => 0,
+    }
+  }
+
   pub fn self_single_step_transfer_activation_height(chain: &Chain) -> u32 {
     match chain {
       Chain::Mainnet => 930930,  // decided by community
@@ -29,17 +38,24 @@ impl HardForks {
     height: u32,
     chain: &Chain,
     charms: u16,
+    pre_jubilant_curse_reason: Option<&Curse>,
+    has_tapscript_signer: bool,
   ) -> bool {
     // can not be unbound or cursed
     if Charm::Unbound.is_set(charms) || Charm::Cursed.is_set(charms) {
       return false;
     }
 
+    if height >= Self::draft_vindicated_inscription_activation_height(chain) {
+      return true
+    }
+
+    let vindicated_set = Charm::Vindicated.is_set(charms);
     let below_activation_height = height < Self::self_single_step_transfer_activation_height(chain);
     if below_activation_height {
-      !Charm::Vindicated.is_set(charms)
+      !vindicated_set
     } else {
-      true
+      !vindicated_set || matches!(pre_jubilant_curse_reason, Some(Curse::Reinscription)) || has_tapscript_signer
     }
   }
 }
