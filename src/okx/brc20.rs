@@ -75,6 +75,7 @@ pub struct CreatedInscription<'a> {
   pub inscription_number: i32,
   pub parents: &'a Vec<InscriptionId>,
   pub new_satpoint: SatPoint,
+  pub pre_jubilant_curse_reason: Option<&'a Curse>,
   pub charms: u16,
   pub tapscript_pk: [u8; 35],
 }
@@ -91,6 +92,7 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
       Action::Created {
         inscription,
         parents,
+        pre_jubilant_curse_reason,
         charms,
         tapscript_pk,
         ..
@@ -102,6 +104,7 @@ impl<'a> From<&'a OkxInscriptionEvent> for Option<CreatedInscription<'a>> {
         inscription_number: 0,
         parents: &parents,
         new_satpoint: event.new_satpoint,
+        pre_jubilant_curse_reason: pre_jubilant_curse_reason.as_ref(),
         charms: *charms,
         tapscript_pk: *tapscript_pk,
       }),
@@ -117,18 +120,21 @@ impl BRC20CreationOperationExtractor for CreatedInscription<'_> {
       return None;
     }
 
+    let address_type = if height < HardForks::self_single_step_transfer_activation_height(&chain) {
+      0
+    }else {
+      self.tapscript_pk[34]
+    };
+    let has_tapscript_signer = address_type > 0;
     if HardForks::check_inscription_preconditions(
       height,
       &chain,
       self.charms,
+      self.pre_jubilant_curse_reason,
+      has_tapscript_signer,
     ) {
       let first_inscription = self.inscription_id.index == 0;
-      let address_type = if height < HardForks::self_single_step_transfer_activation_height(&chain) {
-        0
-      }else {
-        self.tapscript_pk[34]
-      };
-      let signer = if address_type > 0 {
+      let signer = if has_tapscript_signer {
         let script = utils::get_pk_script_by_pubkey_and_type(&self.tapscript_pk[1..33], address_type);
         Some(UtxoAddress::from_script(script.as_script(), &chain))
       } else {
